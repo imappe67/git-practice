@@ -101,7 +101,7 @@ def main():
     # --- side-chain ducking of music (and a little of sfx) under speech
     env = envelope(voice.mean(axis=1), attack=0.05, release=0.6)
     env = env / (env.max() + 1e-9)
-    duck_music = 1.0 - 0.55 * np.clip(env * 3, 0, 1)
+    duck_music = 1.0 - 0.4 * np.clip(env * 3, 0, 1)
     duck_sfx = 1.0 - 0.3 * np.clip(env * 3, 0, 1)
 
     mix = voice * 1.0 + music * 0.62 * duck_music[:, None] + sfx * 0.7 * duck_sfx[:, None]

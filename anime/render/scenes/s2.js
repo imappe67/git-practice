@@ -20,6 +20,15 @@ function s26_camT(cam, p) {
   const sy = sh * noise1(T * 25, 23) * 22 * (0.3 + 0.7 * p);
   return { z, cx, cy, sx, sy, rot: (cam.rot || 0) * p };
 }
+// draw only the visible part of a cached world-space canvas (1 canvas px = sc world px)
+function s26_blit(ctx, cam, p, cv, x0, y0, sc = 1, ox = 0, oy = 0) {
+  const a = s26_toWorld(cam, p, -40, -40), b = s26_toWorld(cam, p, W + 40, H + 40);
+  const wx0 = Math.max(Math.min(a.x, b.x), x0 + ox), wy0 = Math.max(Math.min(a.y, b.y), y0 + oy);
+  const wx1 = Math.min(Math.max(a.x, b.x), x0 + ox + cv.width / sc), wy1 = Math.min(Math.max(a.y, b.y), y0 + oy + cv.height / sc);
+  if (wx1 <= wx0 || wy1 <= wy0) return;
+  const sx = (wx0 - x0 - ox) * sc, sy = (wy0 - y0 - oy) * sc;
+  ctx.drawImage(cv, sx, sy, (wx1 - wx0) * sc, (wy1 - wy0) * sc, wx0, wy0, wx1 - wx0, wy1 - wy0);
+}
 function s26_push(ctx, cam, p) {
   const c = s26_camT(cam, p);
   ctx.save();
@@ -174,28 +183,47 @@ function s26_ridgePath(ctx, seed, base, amp, freq, x0 = -900, x1 = 2800) {
   ctx.lineTo(x1, 1400);
   ctx.closePath();
 }
+const S26_MTN = [
+  { p: 0.08, seed: 61, base: 610, amp: 120, freq: 0.0021, col: '#34568f', mist: 'rgba(130,160,215,0.30)' },
+  { p: 0.15, seed: 62, base: 650, amp: 95, freq: 0.0029, col: '#26407a', mist: 'rgba(110,140,200,0.24)' },
+  { p: 0.25, seed: 63, base: 690, amp: 60, freq: 0.0042, col: '#1b2f5e', mist: 'rgba(90,120,185,0.20)' },
+];
+const S26_MX0 = -700, S26_MW = 3300;
+function s26_mountainStatic(i) {
+  const k = 'mtn' + i;
+  if (S26.cache[k]) return S26.cache[k];
+  const L = S26_MTN[i];
+  const top = Math.floor(L.base - L.amp * 2.2), bot = 1250;
+  const cv = document.createElement('canvas');
+  cv.width = S26_MW; cv.height = bot - top;
+  const c = cv.getContext('2d');
+  c.translate(-S26_MX0, -top);
+  s26_ridgePath(c, L.seed, L.base, L.amp, L.freq, S26_MX0, S26_MX0 + S26_MW);
+  const g = c.createLinearGradient(0, L.base - L.amp * 1.6, 0, L.base + 60);
+  g.addColorStop(0, L.col);
+  g.addColorStop(1, mixColor(L.col, '#6f8fca', 0.35));
+  c.fillStyle = g;
+  c.fill();
+  // moonlit rim on the ridge line
+  c.save(); c.clip();
+  c.strokeStyle = 'rgba(150,180,235,0.35)'; c.lineWidth = 3;
+  c.stroke();
+  c.restore();
+  const m = c.createLinearGradient(0, L.base - 30, 0, L.base + 40);
+  m.addColorStop(0, 'rgba(0,0,0,0)');
+  m.addColorStop(1, L.mist);
+  c.fillStyle = m;
+  c.fillRect(S26_MX0, L.base - 30, S26_MW, bot - L.base + 30);
+  S26.cache[k] = { cv, top };
+  return S26.cache[k];
+}
 function s26_mountains(ctx, cam) {
-  const layers = [
-    { p: 0.08, seed: 61, base: 610, amp: 120, freq: 0.0021, col: '#34568f', mist: 'rgba(130,160,215,0.30)' },
-    { p: 0.15, seed: 62, base: 650, amp: 95, freq: 0.0029, col: '#26407a', mist: 'rgba(110,140,200,0.24)' },
-    { p: 0.25, seed: 63, base: 690, amp: 60, freq: 0.0042, col: '#1b2f5e', mist: 'rgba(90,120,185,0.20)' },
-  ];
-  for (const L of layers) {
+  S26_MTN.forEach((L, i) => {
+    const { cv, top } = s26_mountainStatic(i);
     s26_push(ctx, cam, L.p);
-    s26_ridgePath(ctx, L.seed, L.base, L.amp, L.freq);
-    const g = ctx.createLinearGradient(0, L.base - L.amp * 1.6, 0, L.base + 60);
-    g.addColorStop(0, L.col);
-    g.addColorStop(1, mixColor(L.col, '#6f8fca', 0.35));
-    ctx.fillStyle = g;
-    ctx.fill();
-    // mist at the base
-    const m = ctx.createLinearGradient(0, L.base - 30, 0, L.base + 40);
-    m.addColorStop(0, 'rgba(0,0,0,0)');
-    m.addColorStop(1, L.mist);
-    ctx.fillStyle = m;
-    ctx.fillRect(-900, L.base - 30, 3700, 700);
+    s26_blit(ctx, cam, L.p, cv, S26_MX0, top);
     ctx.restore();
-  }
+  });
 }
 
 // static valley floor, cached to an offscreen canvas (identical every frame)
@@ -301,7 +329,7 @@ function s26_valleyStatic() {
 }
 function s26_valley(ctx, T, cam, opt) {
   s26_push(ctx, cam, S26_VALLEY_P);
-  ctx.drawImage(s26_valleyStatic(), S26_VX0, S26_VY0);
+  s26_blit(ctx, cam, S26_VALLEY_P, s26_valleyStatic(), S26_VX0, S26_VY0);
   const { paddies, houses } = s26_valleyData();
   // star reflections twinkling in the paddies
   const r = rng(99);
@@ -409,7 +437,12 @@ function s26_litActor(ctx, draw, o) {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = clamp(o.rimA);
     ctx.drawImage(R, bx, by, bw, bh, bx, by, bw, bh);
-    if (o.blur !== 0) { ctx.filter = `blur(${o.blur || 4}px)`; ctx.drawImage(R, bx, by, bw, bh, bx, by, bw, bh); ctx.filter = 'none'; }
+    if (o.blur !== 0) {
+      // cheap soft bloom: a few offset copies at low alpha
+      const bl = o.blur || 4;
+      ctx.globalAlpha = clamp(o.rimA) * 0.35;
+      for (const [ddx, ddy] of [[bl, 0], [-bl, 0], [0, bl], [0, -bl]]) ctx.drawImage(R, bx, by, bw, bh, bx + ddx, by + ddy, bw, bh);
+    }
   }
   ctx.restore();
 }
@@ -526,9 +559,9 @@ function s26_tree(ctx, T, o) {
   s26_shimenawa(ctx, T, wind, lights);
 
   // canopy (cached layers, swaying independently)
-  s26_canopy(ctx, T, wind, lights);
+  s26_canopy(ctx, T, wind, lights, o.cam);
 }
-const S26_CAN = { x0: -620, y0: -500, w: 1950, h: 1230, sc: 1.2, layers: 3 };
+const S26_CAN = { x0: -620, y0: -500, w: 1950, h: 1230, sc: 1, layers: 3, wsc: 0.35 };
 function s26_canopyStatic() {
   if (S26.cache.canopy) return S26.cache.canopy;
   const { clusters } = s26_treeData();
@@ -540,7 +573,10 @@ function s26_canopyStatic() {
     return [cv, c];
   };
   const layers = [];
-  const [sil, sc] = mk();
+  const sil = document.createElement('canvas');
+  sil.width = Math.ceil(S26_CAN.w * S26_CAN.wsc); sil.height = Math.ceil(S26_CAN.h * S26_CAN.wsc);
+  const sc = sil.getContext('2d');
+  sc.scale(S26_CAN.wsc, S26_CAN.wsc); sc.translate(-S26_CAN.x0, -S26_CAN.y0);
   sc.fillStyle = '#ffc070';
   const per = Math.ceil(clusters.length / S26_CAN.layers);
   for (let li = 0; li < S26_CAN.layers; li++) {
@@ -570,7 +606,7 @@ function s26_canopyStatic() {
   S26.cache.canopy = { layers, sil };
   return S26.cache.canopy;
 }
-function s26_canopy(ctx, T, wind, lights) {
+function s26_canopy(ctx, T, wind, lights, cam) {
   const { layers, sil } = s26_canopyStatic();
   const { x0, y0, w, h } = S26_CAN;
   // warm light from the strongest nearby light
@@ -586,7 +622,7 @@ function s26_canopy(ctx, T, wind, lights) {
     b.clearRect(0, 0, B.width, B.height);
     b.drawImage(sil, 0, 0);
     b.globalCompositeOperation = 'source-in';
-    b.scale(S26_CAN.sc, S26_CAN.sc); b.translate(-x0, -y0);
+    b.scale(S26_CAN.wsc, S26_CAN.wsc); b.translate(-x0, -y0);
     const g = b.createRadialGradient(best.x, best.y, 0, best.x, best.y, best.r * 1.6);
     g.addColorStop(0, rgba(best.color || '#ffc070', 1)); g.addColorStop(0.5, rgba(best.color || '#ffc070', 0.35)); g.addColorStop(1, rgba(best.color || '#ffc070', 0));
     b.fillStyle = g; b.fillRect(x0, y0, w, h);
@@ -594,19 +630,19 @@ function s26_canopy(ctx, T, wind, lights) {
     warm = { B, ox: dx / dl * 10, oy: dy / dl * 10, a: clamp(best.a * 1.3) };
     ctx.save();
     ctx.globalAlpha = warm.a;
-    ctx.drawImage(B, x0 + warm.ox, y0 + warm.oy, w, h);
+    s26_blit(ctx, cam, 1, B, x0, y0, S26_CAN.wsc, warm.ox, warm.oy);
     ctx.restore();
   }
   layers.forEach((cv, li) => {
     const ox = wind * 9 * noise1(T * 0.55 + li * 7.3, 1) + wind * 4 * Math.sin(T * 1.2 + li * 2);
     const oy = wind * 3 * noise1(T * 0.5 + li * 3.1, 2);
-    ctx.drawImage(cv, x0 + ox, y0 + oy, w, h);
+    s26_blit(ctx, cam, 1, cv, x0, y0, 1, ox, oy);
   });
   if (warm) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = warm.a * 0.3;
-    ctx.drawImage(warm.B, x0, y0, w, h);
+    s26_blit(ctx, cam, 1, warm.B, x0, y0, S26_CAN.wsc);
     ctx.restore();
   }
 }
@@ -825,7 +861,7 @@ function s26_drift(ctx, T, o) {
 function s26_drawSet(ctx, T, cam, opt = {}) {
   cam = { T, ...cam };
   const lights = opt.lights || [];
-  const set = { lights, wind: opt.wind ?? 0.3, windBias: opt.windBias || 0 };
+  const set = { lights, wind: opt.wind ?? 0.3, windBias: opt.windBias || 0, cam };
   s26_sky(ctx, T, cam);
   if (opt.skyFx) opt.skyFx(ctx);
   s26_mountains(ctx, cam);
@@ -886,7 +922,7 @@ function s2_drawStar(ctx, T, cam) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   // tail: sample the path back in time -> tapered ribbon + soft glow beads
-  const tailDur = T < 8.6 ? 0.6 : T < 10.8 ? lerp(0.6, 1.5, invLerp(8.6, 9.2, T)) : lerp(1.5, 0.4, invLerp(10.8, 11.3, T));
+  const tailDur = T < 8.6 ? 0.6 : T < 10.8 ? lerp(0.6, 1.5, invLerp(8.6, 9.2, T)) : lerp(1.5, 0.75, invLerp(10.8, 11.3, T));
   const N = 24, pts = [];
   for (let i = 0; i <= N; i++) {
     const tt = T - (i / N) * tailDur;
@@ -937,8 +973,8 @@ function s2_drawStar(ctx, T, cam) {
   glow(ctx, hs.x, hs.y, 200 * hr * pulse, '#ffc86a', 0.3 * fadeIn * Math.min(1.6, head.bright));
   glow(ctx, hs.x, hs.y, 70 * hr, '#fff4d0', 0.9 * fadeIn);
   glow(ctx, hs.x, hs.y, 26 * hr, '#ffffff', fadeIn, 0.4);
-  sparkle(ctx, hs.x, hs.y, 60 * hc * pulse, '#ffffff', 0.9 * fadeIn, 0);
-  sparkle(ctx, hs.x, hs.y, 34 * hc, '#fff3c0', 0.7 * fadeIn, Math.PI / 4);
+  sparkle(ctx, hs.x, hs.y, 44 * hc * pulse, '#ffffff', 0.9 * fadeIn, 0.08 * Math.sin(T * 9));
+  sparkle(ctx, hs.x, hs.y, 26 * hc * (2 - pulse), '#fff3c0', 0.7 * fadeIn, Math.PI / 4);
   ctx.fillStyle = rgba('#ffffff', fadeIn);
   ctx.beginPath(); ctx.arc(hs.x, hs.y, 5 * hr, 0, TAU); ctx.fill();
   ctx.restore();
@@ -947,6 +983,17 @@ function s2_drawStar(ctx, T, cam) {
 // impact FX in valley-layer coords (called inside the valley transform)
 function s2_impactValley(ctx, T) {
   const tt = T - 12.6;
+  // reflection of the star in the flooded paddies
+  if (T > 7.8 && T < 12.6) {
+    const st = s2_starAt(T);
+    const k = T < 10.8 ? 0.25 : 0.25 + 0.75 * invLerp(10.8, 12.6, T);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.translate(st.x, Math.max(st.y, 700) + (st.y < 700 ? 70 + (700 - st.y) * 0.25 : 30));
+    ctx.scale(0.35, 1);
+    glow(ctx, 0, 0, 90 * st.size, '#ffe6a8', 0.35 * k);
+    ctx.restore();
+  }
   if (tt < -0.25) return;
   const { x, y } = S2_IMPACT;
   ctx.save();
@@ -1111,11 +1158,27 @@ function s2_closeup(ctx, T) {
     glow(ctx, x + Math.sin(T + i) * 6, y, 60 + r() * 60, '#ffb347', 0.12 + r() * 0.1);
   }
   ctx.restore();
-  ctx.fillStyle = 'rgba(6,16,24,0.92)';
-  for (let i = 0; i < 7; i++) {
-    const x = -60 + r() * 520, y = -80 + r() * 200, rr = 90 + r() * 90;
-    ctx.beginPath(); ctx.arc(x + Math.sin(T * 0.8 + i) * 6, y, rr, 0, TAU); ctx.fill();
+  // defocused hill crest + grass behind her shoulders
+  ctx.save();
+  ctx.filter = 'blur(6px)';
+  ctx.fillStyle = '#0b1f2c';
+  ctx.beginPath(); ctx.moveTo(-50, 1100);
+  for (let x = -50; x <= W + 50; x += 40) ctx.lineTo(x, 880 + 40 * Math.sin(x * 0.003 + 1) + 12 * Math.sin(x * 0.05 + T * 2));
+  ctx.lineTo(W + 50, 1100); ctx.closePath(); ctx.fill();
+  // out-of-focus camphor leaves framing top-left
+  ctx.filter = 'blur(10px)';
+  const { clusters } = s26_treeData();
+  ctx.translate(-760, -330);
+  ctx.scale(1.7, 1.7);
+  for (let i = 0; i < clusters.length; i += 3) {
+    const C = clusters[i];
+    if (C.x > 700 || C.y > 250) continue;
+    ctx.fillStyle = rgba('#3f6f84', 0.8);
+    s26_clusterPath(ctx, C, 6 + Math.sin(T * 0.8) * 4, -8, 1); ctx.fill();
+    ctx.fillStyle = '#081820';
+    s26_clusterPath(ctx, C, Math.sin(T * 0.8) * 4, 0, 1); ctx.fill();
   }
+  ctx.restore();
   const o = s2_hinaOpts(T);
   const hb = {
     ...o, x: 700 - u * 20, y: 1150, scale: 2.2, bust: true, view: 'threeQuarter', facing: 1,

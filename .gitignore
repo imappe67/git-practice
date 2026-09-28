@@ -2,3 +2,6 @@ output.log
 anime/preview/
 anime/render/data.js
 anime/audio/mix.wav
+anime/audio/music_stems/
+anime/audio/music.wav
+anime/audio/sfx.wav

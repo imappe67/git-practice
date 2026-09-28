@@ -34,7 +34,7 @@ function s34_bgMat(cam, p, zp) {
 function s34_starList() {
   if (s34_cache.stars) return s34_cache.stars;
   const r = rng(3401), a = [];
-  for (let i = 0; i < 850; i++) {
+  for (let i = 0; i < 1500; i++) {
     const s = r();
     a.push({
       x: r() * 2800 - 440, y: s34_HY - 8 - Math.pow(r(), 0.8) * 1250,
@@ -45,7 +45,7 @@ function s34_starList() {
   const m = [];
   for (let i = 0; i < 38; i++) {
     const u = r();
-    m.push({ x: lerp(-300, 2300, u), y: lerp(s34_HY + 40, -700, u) + (r() - 0.5) * 240, r: 150 + r() * 200, c: i % 3 ? '#6f7fd8' : '#b58ad8', a: 0.05 + r() * 0.05 });
+    m.push({ x: lerp(-300, 2300, u), y: lerp(s34_HY + 40, -700, u) + (r() - 0.5) * 240, r: 150 + r() * 200, c: i % 3 ? '#6f7fd8' : '#b58ad8', a: 0.07 + r() * 0.06 });
   }
   s34_cache.stars = { a, m };
   return s34_cache.stars;
@@ -432,7 +432,6 @@ function s34_fgStalks(ctx, T, blades, blur = 7, tint = '#06120e', rim = '#2b5a4a
   g2.filter = `blur(${(blur / 3).toFixed(2)}px)`; g2.drawImage(b, 0, 0); g2.filter = 'none';
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(b2, 0, 0, W, H);
   ctx.restore();
 }
@@ -745,13 +744,13 @@ registerScene('s3', {
     // --- screen-space foreground: out-of-focus stalks and firefly bokeh
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (cam.shot === 'A') {
-      s34_fgStalks(ctx, T, [[60, 420, 0.25, 26], [150, 340, 0.05, 22], [1830, 460, -0.3, 28], [1720, 300, -0.1, 20], [1900, 380, -0.05, 24]], 7);
+      s34_fgStalks(ctx, T, [[40, 460, 0.3, 60], [150, 360, 0.08, 46], [260, 250, -0.1, 36], [1830, 500, -0.32, 64], [1700, 320, -0.12, 44], [1910, 400, -0.05, 50]], 8);
       s34_bokeh(ctx, T, { seed: 301, n: 6, y: 250, h: 700, rMin: 18, rMax: 46, alpha: 0.3 });
     } else if (cam.shot === 'B') {
-      s34_fgStalks(ctx, T, [[120, 700, 0.2, 40], [260, 560, 0.08, 34], [1760, 640, -0.25, 40], [1560, 420, -0.1, 30]], 9);
+      s34_fgStalks(ctx, T, [[120, 760, 0.22, 90], [300, 560, 0.05, 70], [1760, 700, -0.28, 90], [1560, 460, -0.1, 64], [1900, 560, -0.02, 70]], 12);
       s34_bokeh(ctx, T, { seed: 302, n: 8, y: 100, h: 900, rMin: 30, rMax: 80, alpha: 0.28 });
     } else {
-      s34_fgStalks(ctx, T, [[40, 520, 0.22, 30], [1860, 560, -0.28, 32], [1760, 380, -0.12, 24]], 8);
+      s34_fgStalks(ctx, T, [[40, 560, 0.25, 70], [180, 360, 0.06, 50], [1860, 600, -0.3, 74], [1740, 400, -0.12, 54]], 10);
       s34_bokeh(ctx, T, { seed: 303, n: 7, y: 150, h: 800, rMin: 22, rMax: 60, alpha: 0.3 });
     }
   },

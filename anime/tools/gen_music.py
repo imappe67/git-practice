@@ -425,7 +425,7 @@ def flute(f0, hold, vel=0.5, attack=0.07, release=0.18):
     y = np.sin(ph) + 0.28 * np.sin(2 * ph + 0.4) + 0.1 * np.sin(3 * ph + 1.1) + 0.035 * np.sin(4 * ph)
     # amplitude flutter
     y *= 1 + 0.04 * np.sin(TWOPI * 5.3 * t)
-    br = signal.sosfilt(sos_bp(1200, 9000), RNG.standard_normal(L)) * 0.07
+    br = signal.sosfilt(sos_bp(1200, 9000), RNG.standard_normal(L)) * 0.035
     br += signal.sosfilt(sos_bp(f0 * 0.9, f0 * 1.15), RNG.standard_normal(L)) * 0.25
     # chiff
     nc = int(0.05 * SR)

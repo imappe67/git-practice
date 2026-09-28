@@ -764,8 +764,8 @@ function s17_panorama(ctx, T, cam, fx = {}) {
     const f = 0.8 + 0.2 * noise1(T * 0.6 + w.seed * 3.1, 4);
     s17_glow(ctx, w.x, w.y, Math.max(w.w, w.h) * 3.2 + 6, '#ffb347', 0.5 * f * wb);
     if (flick > 0) {
-      const tw = clamp(Math.sin(T * (5 + hash(w.seed) * 6) + w.seed * 7) * 2 - 0.6);
-      if (tw > 0) sparkle(ctx, w.x, w.y - w.h * 0.3, (6 + w.w * 0.9) * (0.5 + tw), '#fff3c0', tw * flick, 0);
+      const tw = clamp(Math.sin(T * (4 + hash(w.seed) * 5) + w.seed * 7) * 3 - 2.2);
+      if (tw > 0) sparkle(ctx, w.x, w.y - w.h * 0.2, (4 + w.w * 0.45) * (0.4 + tw), '#fff3c0', tw * flick, 0);
     }
   }
   ctx.globalCompositeOperation = 'source-over';

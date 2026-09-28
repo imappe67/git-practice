@@ -43,7 +43,7 @@ BEDS = {
     "s6": dict(crickets=0.50, frogs=0.15, wind=0.10, hill=1.00, grass=1.00, town=0.0),
     "s7": dict(crickets=0.45, frogs=0.20, wind=0.20, hill=0.45, grass=0.30, town=0.0),
 }
-BED_DB = dict(crickets=-35.0, frogs=-40.0, wind=-37.0, hill=-33.0, grass=-40.0, town=-33.0)
+BED_DB = dict(crickets=-35.0, frogs=-40.0, wind=-37.0, hill=-31.0, grass=-40.0, town=-33.0)
 BED_DIALOGUE_DUCK = 0.72  # bed gain while someone is speaking
 FOLEY_DIALOGUE_DUCK = 0.8  # footsteps / small foley gain while someone is speaking
 
@@ -67,12 +67,19 @@ CUES = dict(
     # s4 ---------------------------------------------------------------
     lantern=dict(t0=29.9, t1=30.4, chime=30.3, pan=0.05),
     # s5 ---------------------------------------------------------------
-    run_s5=dict(t0=31.0, t1=41.5, rate=4.6,
+    # step rate ramps linearly rate[0] → rate[1] steps/s (run cycle 2.3 → 3.2 cycles/s, 2 steps/cycle)
+    run_s5=dict(t0=31.0, t1=41.5, rate=(4.6, 6.4),
                 surfaces=[(31.0, "stone"), (34.3, "wood"), (36.9, "stone"), (39.4, "wood")]),
-    shoji=[dict(t=32.0, dur=0.42, pan=0.45), dict(t=36.3, dur=0.38, pan=0.35)],
-    orbs=dict(times=[33.2, 35.0, 37.3, 38.6, 39.6, 40.4], pan_from=[0.5, 0.55, 0.4, 0.6, -0.4, 0.5],
-              pan_to=0.0),
-    swirl=dict(t0=39.5, t1=41.5),
+    shoji=dict(times=[32.00, 33.75, 36.30, 37.55, 38.65, 39.35], dur=0.4,
+               pans=[0.45, 0.40, 0.35, 0.40, 0.35, 0.30]),
+    # per house: gather (liftoff - gather_lead) → liftoff → float → arrival chime in the lantern
+    orbs=dict(liftoff=[32.35, 34.10, 36.50, 37.80, 38.85, 39.60],
+              arrive=[33.20, 35.00, 37.30, 38.60, 39.60, 40.40],
+              gather_lead=0.35, pan_from=[0.40, 0.35, 0.30, 0.35, 0.30, 0.25], pan_to=0.05),
+    swarm=dict(t0=39.37, t1=41.73, arrivals=46, accel=0.55, bed=(39.4, 41.5)),
+    blaze=dict(t0=39.4, t1=41.3),
+    flood=dict(t0=40.6, peak=41.5, tail=1.2),
+    passby=dict(posts=[31.75, 35.55, 39.05], lanterns=[33.9, 37.95, 40.15, 41.0]),
     town=dict(t0=30.6, t1=42.0, furin_hz=2380.0, dog=[34.55, 34.9], pan_scroll=(0.8, -0.8)),
     # s6 ---------------------------------------------------------------
     hill_wind=dict(t=41.5, peak=42.4, end=45.0),
@@ -759,66 +766,136 @@ def fx_run_s5(mix, duck):
             cr = bp(rg.standard_normal(n), 700, 1600) * (0.5 - 0.5 * np.cos(TAU * 45 * ts(n))) * hump(n, 0.3)
             mix.add(fade(cr), tt + 0.06, pan=p + 0.1, gain=0.008)
         k += 1
-        tt += 1 / c["rate"]
+        x = (tt - c["t0"]) / (c["t1"] - c["t0"])
+        tt += 1 / (c["rate"][0] + (c["rate"][1] - c["rate"][0]) * x)
 
 
 def fx_shoji(mix):
+    c = CUES["shoji"]
     rg = R(110)
-    for c in CUES["shoji"]:
-        d = c["dur"]
+    for t0, p0 in zip(c["times"], c["pans"]):
+        d = c["dur"] * rg.uniform(0.92, 1.05)
         n = secs(d)
         x = np.linspace(0, 1, n)
         rough = 0.55 + 0.45 * np.abs(smooth_rand(n, 45, rg))
-        fr = sweep_noise(n, 1100 * (1 + 0.25 * x), 0.7, rg) * rough * seg_env(d, 0.05, 0.06) * (1 - 0.3 * x)
+        fr = sweep_noise(n, 1100 * rg.uniform(0.85, 1.15) * (1 + 0.25 * x), 0.7, rg) * rough * seg_env(d, 0.05, 0.06) * (1 - 0.3 * x)
         rum = lp(rg.standard_normal(n), 260) * rough * seg_env(d, 0.05, 0.05)
         rum /= np.std(rum) + 1e-9
-        pan = c["pan"] - 0.15 * x
-        mix.add(fade(fr + 0.6 * rum), c["t"], pan=pan, gain=0.025, rs=0.4)
-        stop = bell(310, 0.25, [1, 2.3, 3.9], [0.05, 0.03, 0.015], [1, 0.5, 0.3], rg, attack=0.0005)
+        pan = p0 - 0.15 * x        # camera scrolls right → houses drift left
+        mix.add(fade(fr + 0.6 * rum), t0, pan=pan, gain=0.022, rs=0.4)
+        stop = bell(310 * rg.uniform(0.9, 1.1), 0.25, [1, 2.3, 3.9], [0.05, 0.03, 0.015], [1, 0.5, 0.3], rg, attack=0.0005)
         stop += lp(rg.standard_normal(len(stop)), 500) * np.exp(-ts(len(stop)) / 0.015)
-        mix.add(fade(stop), c["t"] + d, pan=float(pan[-1]), gain=0.05, rs=0.4)
+        mix.add(fade(stop), t0 + d, pan=float(pan[-1]), gain=0.045, rs=0.4)
 
 
 def fx_orbs(mix):
     c = CUES["orbs"]
     rg = R(111)
-    for i, (t0, p0) in enumerate(zip(c["times"], c["pan_from"])):
-        base = 5 + i  # rises through the pentatonic as the lantern fills
-        for j, deg in enumerate([base, base + 2, base + 4]):
-            mix.add(tink(penta(deg), 0.9 - 0.2 * j, rg, kind=GLASS, trem=0.2), t0 + j * 0.085,
-                    pan=p0 * (1 - 0.3 * j), gain=0.05 * (0.85 ** j), rs=0.2, rl=0.5)
-        # the orb drifting into the lantern: soft air + trailing grains
-        d = 0.9
+    for i, (tl, ta, p0) in enumerate(zip(c["liftoff"], c["arrive"], c["pan_from"])):
+        pt = c["pan_to"]
+        # gather: light pooling at the window — soft rising glints
+        g0 = tl - c["gather_lead"]
+        k = 10
+        gt = np.sort(rg.random(k) ** 0.7) * c["gather_lead"]
+        sparkle_cloud(mix, g0 + gt, p0 + rg.uniform(-0.1, 0.1, k),
+                      [penta(rg.integers(11, 15) + int(4 * g / c["gather_lead"])) for g in gt],
+                      rg.uniform(0.03, 0.08, k), 0.004 + 0.01 * gt / c["gather_lead"], rg, rl=0.4)
+        # lift-off: tiny airy "pop" + glint
+        mix.add(tink(penta(12 + i), 0.25, rg), tl, pan=p0, gain=0.018, rl=0.4)
+        puff = bp(rg.standard_normal(secs(0.12)), 1500, 6000) * hump(secs(0.12), 0.2, 2)
+        mix.add(puff, tl, pan=p0, gain=0.01)
+        # float to the lantern: soft air + sparkle trail
+        d = max(ta - tl, 0.2)
         n = secs(d)
         x = np.linspace(0, 1, n)
-        pan = p0 + (c["pan_to"] - p0) * x
-        mix.add(whoosh(n, 2500 * 2 ** x, hump(n, 0.3, 2), pan, 0.2, rg, 0.8), t0, gain=0.018, rl=0.3)
-        k = 16
+        pan = p0 + (pt - p0) * x
+        mix.add(whoosh(n, 2200 * 2 ** (0.8 * x), hump(n, 0.6, 2), pan, 0.2, rg, 0.8), tl, gain=0.012, rl=0.3)
+        k = 12
         gt = np.sort(rg.random(k)) * d
-        sparkle_cloud(mix, t0 + gt, p0 + (c["pan_to"] - p0) * gt / d, [penta(rg.integers(13, 20)) for _ in range(k)],
-                      rg.uniform(0.03, 0.1, k), rg.uniform(0.008, 0.02, k), rg)
+        sparkle_cloud(mix, tl + gt, p0 + (pt - p0) * gt / d, [penta(rg.integers(13, 20)) for _ in range(k)],
+                      rg.uniform(0.03, 0.1, k), rg.uniform(0.005, 0.012, k), rg)
+        # arrival 'thank-you' chime, rising through the scale as the lantern fills
+        base = 5 + i
+        for j, deg in enumerate([base, base + 2, base + 4]):
+            mix.add(tink(penta(deg), 0.9 - 0.2 * j, rg, kind=GLASS, trem=0.2), ta + j * 0.085,
+                    pan=pt + 0.12 * (j - 1), gain=0.05 * (0.85 ** j), rs=0.2, rl=0.5)
+        glow = bell(penta(base - 5) / 2, 1.2, [1, 2, 3], [0.5, 0.3, 0.2], [1, 0.3, 0.1], rg, attack=0.03)
+        mix.add(glow, ta, pan=pt, gain=0.02, rl=0.3)          # lantern pulse (warm low tone)
 
 
-def fx_swirl(mix):
-    c = CUES["swirl"]
+def fx_swarm(mix):
+    """many small orbs arriving (accelerating) over a rising shimmer bed."""
+    c = CUES["swarm"]
     rg = R(112)
-    d = c["t1"] - c["t0"]
+    b0, b1 = c["bed"]
+    d = b1 - b0
     n = secs(d)
     x = np.linspace(0, 1, n)
     tl = ts(n)
-    pan = 0.8 * np.sin(TAU * (0.6 + 1.2 * x) * tl)
-    amp = x ** 1.5 * seg_env(d, 0.3, 0.25)
-    mix.add(whoosh(n, 1600 * 2 ** (2.2 * x), amp, pan, 0.5, rg, 0.9), c["t0"], gain=0.05, rl=0.3)
+    pan = 0.7 * np.sin(TAU * (0.6 + 1.2 * x) * tl)
+    amp = x ** 1.5 * seg_env(d, 0.3, 0.2)
+    mix.add(whoosh(n, 1600 * 2 ** (2.2 * x), amp, pan, 0.6, rg, 0.9), b0, gain=0.04, rl=0.3)
     tt = 0.0
-    while tt < d:
+    while tt < d:                                     # shimmer grains, density rising
         xx = tt / d
-        tt += rg.exponential(1 / (25 + 160 * xx ** 1.5))
+        tt += rg.exponential(1 / (25 + 140 * xx ** 1.5))
         if tt >= d:
             break
-        deg = rg.integers(8, 14) + int(8 * xx)
         pp = 0.8 * np.sin(TAU * (0.6 + 1.2 * xx) * tt) + rg.uniform(-0.2, 0.2)
-        mix.add(tink(penta(deg), rg.uniform(0.04, 0.2), rg), c["t0"] + tt, pan=float(np.clip(pp, -1, 1)),
-                gain=0.022 * (0.4 + 0.6 * xx) * rg.uniform(0.4, 1.0), rs=0.1, rl=0.45)
+        mix.add(tink(penta(rg.integers(10, 16) + int(6 * xx)), rg.uniform(0.04, 0.15), rg), b0 + tt,
+                pan=float(np.clip(pp, -1, 1)), gain=0.014 * (0.4 + 0.6 * xx) * rg.uniform(0.4, 1.0), rs=0.1, rl=0.45)
+    # the arrivals: small chimes into the lantern, accelerating
+    k = c["arrivals"]
+    times = c["t0"] + (c["t1"] - c["t0"]) * (np.arange(k) / (k - 1)) ** c["accel"]
+    for i, ta in enumerate(times):
+        xx = i / (k - 1)
+        deg = int(10 + 8 * xx + rg.choice([-1, 0, 0, 1]))
+        mix.add(tink(penta(deg), rg.uniform(0.15, 0.35), rg), ta + rg.uniform(-0.01, 0.01),
+                pan=float(CUES["orbs"]["pan_to"] + rg.uniform(-0.3, 0.3)), gain=0.022 * rg.uniform(0.6, 1.0), rs=0.15, rl=0.45)
+
+
+def fx_blaze_flood(mix):
+    """lantern blazing (warm swelling roar + pad) and the light flood that peaks at the scene cut."""
+    rg = R(120)
+    c = CUES["blaze"]
+    d = c["t1"] - c["t0"] + 0.6
+    n = secs(d)
+    x = np.linspace(0, 1, n)
+    amp = x ** 1.6 * seg_env(d, 0.2, 0.6)
+    mix.add(whoosh(n, 500 * 2 ** (0.8 * x), amp, 0.05, 0.3, rg, 0.9), c["t0"], gain=0.035, rs=0.2)
+    tl = ts(n)
+    pad = sum(np.sin(TAU * penta(dg) / 4 * tl + rg.uniform(0, TAU)) * a_ for dg, a_ in [(0, 1), (3, 0.6), (5, 0.5), (7, 0.25)])
+    mix.add(fade(pad * amp), c["t0"], pan=0.05, gain=0.012, rl=0.3)
+    f = CUES["flood"]
+    d = f["peak"] - f["t0"] + f["tail"]
+    n = secs(d)
+    x = np.linspace(0, 1, n)
+    pk = (f["peak"] - f["t0"]) / d
+    env = np.where(x < pk, (x / pk) ** 2.5, np.exp(-(x - pk) * d / 0.35))
+    mix.add(whoosh(n, 3000 * 2 ** (1.2 * np.minimum(x / pk, 1)), fade(env, 0.01, 0.2), 0.0, 1.0, rg, 1.1),
+            f["t0"], gain=0.07, rl=0.5)
+
+
+def fx_passby(mix):
+    """foreground objects sweeping past the side-scrolling camera (right → left)."""
+    rg = R(121)
+    c = CUES["passby"]
+    for t0 in c["posts"]:             # telephone post: quick dark whoosh
+        d = 0.5
+        n = secs(d)
+        x = np.linspace(0, 1, n)
+        mix.add(whoosh(n, 700 * 2 ** (-0.8 * x), hump(n, 0.45, 2), 0.8 - 1.6 * x, 0.1, rg, 0.8),
+                t0 - d * 0.45, gain=0.035)
+    for t0 in c["lanterns"]:          # overhead lantern cluster: airy whoosh + paper/wood creak
+        d = 0.7
+        n = secs(d)
+        x = np.linspace(0, 1, n)
+        mix.add(whoosh(n, 1800 * 2 ** (-0.6 * x), hump(n, 0.45, 2), 0.7 - 1.4 * x, 0.4, rg, 0.9),
+                t0 - d * 0.45, gain=0.02, rl=0.15)
+        for j in range(3):
+            nn = secs(0.09)
+            cr = bp(rg.standard_normal(nn), 600, 1800) * (0.5 - 0.5 * np.cos(TAU * rg.uniform(30, 55) * ts(nn))) * hump(nn, 0.3)
+            mix.add(fade(cr), t0 + j * 0.13 - 0.1, pan=0.3 - 0.3 * j, gain=0.01)
 
 
 def fx_hill_wind(mix):
@@ -1008,7 +1085,9 @@ def main():
     fx_run_s5(mix, foley_duck)
     fx_shoji(mix)
     fx_orbs(mix)
-    fx_swirl(mix)
+    fx_swarm(mix)
+    fx_blaze_flood(mix)
+    fx_passby(mix)
     fx_hill_wind(mix)
     fx_emerge(mix)
     fx_forehead(mix)

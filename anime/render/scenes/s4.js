@@ -6,28 +6,38 @@ function s4_bump(T, c, w) { const u = (T - c) / w; return Math.exp(-u * u); }
 const s4_T = { cut: 29.72, leap: 29.58, lanternOpen: [29.8, 30.12], land: 30.2, ignite: [30.2, 30.7] };
 
 // Blurred background plate: the paddies, hill and village rendered sharp at full
-// res, reduced to half res and blurred on the way back up (cheap depth of field).
-function s4_bgPlate(ctx, T, cam, blur) {
-  const full = s34_buf('s4full', W, H), half = s34_buf('s4half', W / 2, H / 2);
+// res, reduced to half res and blurred (cheap depth of field). The plate is rendered
+// once per shot at a fixed time (so it is identical whichever frame asks first) and
+// drifted per frame; the live bokeh on top keeps it breathing.
+function s4_plate(key, cam, blur, Tf) {
+  const ck = 's4plate_' + key;
+  if (s34_cache[ck]) return s34_cache[ck];
+  const full = document.createElement('canvas'); full.width = W; full.height = H;
+  const half = s34_buf('s4half', W / 2, H / 2);
   const g = full.getContext('2d');
-  g.setTransform(1, 0, 0, 1, 0, 0);
   const sy = s34_horizon(cam);
   vGradient(g, 0, 0, W, Math.max(1, sy + 2), [[0, '#050a24'], [0.55, '#132a5c'], [1, '#2e4f84']]);
-  s34_sky(g, cam, T, false, 1);
-  s34_drawBg(g, cam, T);
-  s3_drawWater(g, cam, T, null, null, 0);
+  s34_sky(g, cam, Tf, false, 1);
+  s34_drawBg(g, cam, Tf);
+  s3_drawWater(g, cam, Tf, null, null, 0);
   s34_world(g, cam);
   s34_farRows(g, cam);
-  s34_rows(g, cam, T, 1.5, 99, { wind: 1.2 });
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  s34_rows(g, cam, Tf, 1.5, 99, { wind: 1.2 });
   const h = half.getContext('2d');
   h.setTransform(1, 0, 0, 1, 0, 0);
+  h.clearRect(0, 0, W / 2, H / 2);
+  h.filter = `blur(${(blur / 2).toFixed(2)}px)`;
   h.drawImage(full, 0, 0, W / 2, H / 2);
+  h.filter = 'none';
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.drawImage(half, 0, 0, W, H);
+  s34_cache[ck] = full;
+  return full;
+}
+function s4_drawPlate(ctx, img, dx, dy, zoom) {
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.filter = `blur(${blur}px)`;
-  ctx.drawImage(half, 0, 0, W, H);
-  ctx.filter = 'none';
+  ctx.setTransform(zoom, 0, 0, zoom, W / 2 - W / 2 * zoom + dx, H / 2 - H / 2 * zoom + dy);
+  ctx.drawImage(img, 0, 0);
   ctx.restore();
 }
 
@@ -53,8 +63,8 @@ function s4_cuppedHands(ctx, x, y, s, light) {
   ctx.beginPath(); ctx.moveTo(-34, 262); ctx.lineTo(-52, 262); ctx.lineTo(-44, 276); ctx.fill();
   // palms: a shallow bowl
   const sk = ctx.createLinearGradient(0, -40, 0, 70);
-  sk.addColorStop(0, mixColor('#f3c9a8', '#ffe9c4', light));
-  sk.addColorStop(1, '#b98a78');
+  sk.addColorStop(0, mixColor('#e0b294', '#ffd6ac', light));
+  sk.addColorStop(1, '#8a6070');
   ctx.fillStyle = sk; ctx.strokeStyle = OL; ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(-118, -22);
@@ -72,7 +82,7 @@ function s4_cuppedHands(ctx, x, y, s, light) {
   ctx.quadraticCurveTo(-114, -42, -118, -22);
   ctx.closePath(); ctx.fill(); ctx.stroke();
   // inner palm (lit), seam between the two hands
-  ctx.fillStyle = rgba('#fff0d0', 0.35 * light + 0.1);
+  ctx.fillStyle = rgba('#ffe2a8', 0.3 * light);
   ctx.beginPath(); ctx.ellipse(0, -8, 92, 16, 0, 0, TAU); ctx.fill();
   ctx.strokeStyle = rgba(OL, 0.55); ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(2, -10); ctx.quadraticCurveTo(-4, 24, 0, 58); ctx.stroke();
@@ -146,8 +156,7 @@ function s4_shotD(ctx, t, T) {
   const k = prog(T, 24.0, 29.7, Ease.inOutQuad);
   const zoom = lerp(1.0, 1.07, k);
   const fx = 1000, fy = 560;
-  const bgCam = { x: lerp(1230, 1270, k), y: 535, zoom: 1.45 };
-  s4_bgPlate(ctx, T, bgCam, 6);
+  s4_drawPlate(ctx, s4_plate('D', { x: 1250, y: 535, zoom: 1.45 }, 7, 26), lerp(20, -20, k), 0, 1.04 + 0.02 * k);
   s34_bokeh(ctx, T, { seed: 401, n: 9, x: 0, y: 380, w: 900, h: 260, rMin: 26, rMax: 60, color: '#ffc46a', alpha: 0.35 });
   s34_bokeh(ctx, T, { seed: 402, n: 8, x: 900, y: 150, w: 1000, h: 600, rMin: 20, rMax: 50, color: '#e0ff9a', alpha: 0.25 });
 
@@ -198,7 +207,7 @@ function s4_shotD(ctx, t, T) {
   // warm uplight on Hina's face and on the palm
   const face = s34_headPos(hina);
   glow(ctx, face.x + 60, face.y + 140, 380, '#ffb347', 0.16 * kira.glow);
-  glow(ctx, kira.x, kira.y + 40, 520, '#ffd76a', 0.2 * kira.glow);
+  glow(ctx, kira.x, kira.y + 40, 460, '#ffd76a', 0.12 * kira.glow);
   drawKira(ctx, kira);
   // flickers of light: sparkles popping around Kira
   for (const [i, f] of [24.9, 25.7, 26.5, 27.3].entries()) {
@@ -230,8 +239,7 @@ function s4_shotD(ctx, t, T) {
 function s4_shotE(ctx, t, T) {
   const k = prog(T, s4_T.cut, 31.5, Ease.inOutQuad);
   const lit = prog(T, s4_T.ignite[0], s4_T.ignite[1], Ease.outCubic);
-  const bgCam = { x: lerp(980, 1010, k), y: 560, zoom: 1.25 };
-  s4_bgPlate(ctx, T, bgCam, 3.5);
+  s4_drawPlate(ctx, s4_plate('E', { x: 1000, y: 560, zoom: 1.25 }, 4, 30.5), lerp(15, -15, k), 0, 1.03 + 0.01 * k);
   s34_bokeh(ctx, T, { seed: 411, n: 8, x: 0, y: 380, w: 1920, h: 300, rMin: 16, rMax: 40, color: '#ffc46a', alpha: 0.3 });
 
   const zoom = lerp(1.0, 1.05, k);
