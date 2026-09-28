@@ -1142,6 +1142,31 @@ function s2_wide(ctx, T) {
   s2_whiteout(ctx, T, cam);
 }
 
+function s2_closeupFrame() {
+  if (S26.cache.s2cu) return S26.cache.s2cu;
+  const q = 0.25;
+  const mk = () => { const c = document.createElement('canvas'); c.width = W * q; c.height = H * q; const x = c.getContext('2d'); x.scale(q, q); return [c, x]; };
+  const [crest, c1] = mk();
+  c1.fillStyle = '#0b1f2c';
+  c1.beginPath(); c1.moveTo(-50, 1100);
+  for (let x = -50; x <= W + 50; x += 20) c1.lineTo(x, 890 + 40 * Math.sin(x * 0.003 + 1) + 14 * Math.sin(x * 0.05));
+  c1.lineTo(W + 50, 1100); c1.closePath(); c1.fill();
+  const [leaves, c2] = mk();
+  const { clusters } = s26_treeData();
+  c2.translate(-760, -330);
+  c2.scale(1.7, 1.7);
+  for (const C of clusters) {
+    if (C.x > 700 || C.y > 230) continue;
+    c2.fillStyle = rgba('#3f6f84', 0.8);
+    s26_clusterPath(c2, C, 6, -8, 1); c2.fill();
+    c2.fillStyle = '#081820';
+    s26_clusterPath(c2, C, 0, 0, 1); c2.fill();
+  }
+  // soften (small canvas => cheap), done once
+  const blur = (cv, px) => { const t = document.createElement('canvas'); t.width = cv.width; t.height = cv.height; const x = t.getContext('2d'); x.filter = `blur(${px}px)`; x.drawImage(cv, 0, 0); return t; };
+  S26.cache.s2cu = { crest: blur(crest, 1.5), leaves: blur(leaves, 2.5) };
+  return S26.cache.s2cu;
+}
 function s2_closeup(ctx, T) {
   // reverse-ish close shot: Hina's surprised face, the star hanging in the sky behind
   const u = prog(T, 8.4, 10.6, Ease.inOutQuad);
@@ -1158,27 +1183,10 @@ function s2_closeup(ctx, T) {
     glow(ctx, x + Math.sin(T + i) * 6, y, 60 + r() * 60, '#ffb347', 0.12 + r() * 0.1);
   }
   ctx.restore();
-  // defocused hill crest + grass behind her shoulders
-  ctx.save();
-  ctx.filter = 'blur(6px)';
-  ctx.fillStyle = '#0b1f2c';
-  ctx.beginPath(); ctx.moveTo(-50, 1100);
-  for (let x = -50; x <= W + 50; x += 40) ctx.lineTo(x, 880 + 40 * Math.sin(x * 0.003 + 1) + 12 * Math.sin(x * 0.05 + T * 2));
-  ctx.lineTo(W + 50, 1100); ctx.closePath(); ctx.fill();
-  // out-of-focus camphor leaves framing top-left
-  ctx.filter = 'blur(10px)';
-  const { clusters } = s26_treeData();
-  ctx.translate(-760, -330);
-  ctx.scale(1.7, 1.7);
-  for (let i = 0; i < clusters.length; i += 3) {
-    const C = clusters[i];
-    if (C.x > 700 || C.y > 250) continue;
-    ctx.fillStyle = rgba('#3f6f84', 0.8);
-    s26_clusterPath(ctx, C, 6 + Math.sin(T * 0.8) * 4, -8, 1); ctx.fill();
-    ctx.fillStyle = '#081820';
-    s26_clusterPath(ctx, C, Math.sin(T * 0.8) * 4, 0, 1); ctx.fill();
-  }
-  ctx.restore();
+  // defocused hill crest + out-of-focus camphor leaves (cached at low res = soft)
+  const cu = s2_closeupFrame();
+  ctx.drawImage(cu.crest, 0, 0, cu.crest.width, cu.crest.height, -20, 0, W + 40, H);
+  ctx.drawImage(cu.leaves, 0, 0, cu.leaves.width, cu.leaves.height, Math.sin(T * 0.8) * 10 - 30, Math.sin(T * 0.6) * 5 - 20, W + 60, H + 40);
   const o = s2_hinaOpts(T);
   const hb = {
     ...o, x: 700 - u * 20, y: 1150, scale: 2.2, bust: true, view: 'threeQuarter', facing: 1,

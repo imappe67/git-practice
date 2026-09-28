@@ -186,6 +186,23 @@ function s7_meteors(ctx, T, refl) {
     s17_streak(ctx, x, y, Math.atan2(vy, vx), len, 4 + hash(i + 2007) * 5, col, a);
     s17_glow(ctx, x, y, 7 + hash(i + 2008) * 8, col, 0.5 * a);
   }
+  // steady diagonal rain of shooting stars over the whole valley
+  for (let i = 0; i < 420; i++) {
+    const t0 = 54.85 + 3.9 * hash(i + 3000) ** 1.25;
+    const life = 0.5 + hash(i + 3001) * 0.6;
+    const age = T - t0;
+    if (age < 0 || age > life) continue;
+    const ang = 2.2 + (hash(i + 3002) - 0.5) * 0.14;          // falling down-left, parallel
+    const sp = 1000 + hash(i + 3003) * 900;
+    const x0 = -200 + hash(i + 3004) * 2600, y0 = -380 + hash(i + 3005) * 700;
+    const x = x0 + Math.cos(ang) * sp * age, y = y0 + Math.sin(ang) * sp * age;
+    if (refl && y < 0) continue;
+    const k = age / life;
+    const a = Math.min(1, k * 6) * (1 - k) ** 1.3 * (0.4 + 0.6 * hash(i + 3006)) * mul;
+    const col = cols[(i * 3) % 5];
+    s17_streak(ctx, x, y, ang, sp * (0.12 + 0.15 * hash(i + 3007)), 3 + hash(i + 3008) * 5, col, a);
+    s17_glow(ctx, x, y, 6 + hash(i + 3009) * 7, col, 0.45 * a);
+  }
 }
 
 registerScene('s7', {
@@ -311,13 +328,13 @@ registerScene('s7', {
     if (ta > 0) {
       ctx.save();
       // soft dark halo behind the title for legibility
-      const tg = ctx.createRadialGradient(W / 2, 640, 20, W / 2, 640, 620);
+      const tg = ctx.createRadialGradient(W / 2, 580, 20, W / 2, 580, 620);
       tg.addColorStop(0, `rgba(4,8,24,${0.35 * ta})`); tg.addColorStop(1, 'rgba(4,8,24,0)');
       ctx.fillStyle = tg; ctx.fillRect(0, 300, W, 700);
       ctx.restore();
-      s17_title(ctx, W / 2, 640, 150, ta, { reveal: prog(T, 56.8, 57.8), subAlpha: prog(T, 57.4, 58.2), spacing: 0.24 });
+      s17_title(ctx, W / 2, 580, 150, ta, { reveal: prog(T, 56.8, 57.8), subAlpha: prog(T, 57.4, 58.2), spacing: 0.24 });
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      s17_glow(ctx, W / 2, 640, 700, '#ffd76a', 0.12 * ta);
+      s17_glow(ctx, W / 2, 580, 700, '#ffd76a', 0.12 * ta);
       ctx.restore();
     }
     // gentle dimming towards the global fade
