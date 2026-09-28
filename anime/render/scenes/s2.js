@@ -60,6 +60,10 @@ function s26_headPos(o) {
   if (o.bust) return { x: o.x, y: o.y - 200 * s, r: 80 * s };
   return { x: o.x + 5 * s * (o.facing || 1), y: o.y - 330 * s, r: 75 * s };
 }
+function s26_lanternPos(o) {
+  if (typeof hinaLanternPos === 'function' && o.lantern) { const p = hinaLanternPos(o); if (p) return p; }
+  return s26_handPos(o);
+}
 function s26_handPos(o) {
   if (typeof hinaHandPos === 'function') { const p = hinaHandPos(o); if (p) return p; }
   const s = o.scale || 1, f = o.facing || 1;
@@ -440,8 +444,8 @@ function s26_litActor(ctx, draw, o) {
     if (o.blur !== 0) {
       // cheap soft bloom: a few offset copies at low alpha
       const bl = o.blur || 4;
-      ctx.globalAlpha = clamp(o.rimA) * 0.35;
-      for (const [ddx, ddy] of [[bl, 0], [-bl, 0], [0, bl], [0, -bl]]) ctx.drawImage(R, bx, by, bw, bh, bx + ddx, by + ddy, bw, bh);
+      ctx.globalAlpha = clamp(o.rimA) * 0.45;
+      for (const [ddx, ddy] of [[bl, bl * 0.5], [-bl, -bl * 0.5]]) ctx.drawImage(R, bx, by, bw, bh, bx + ddx, by + ddy, bw, bh);
     }
   }
   ctx.restore();
@@ -449,7 +453,7 @@ function s26_litActor(ctx, draw, o) {
 // screen-space box around a standing Hina drawn with options o under camera cam (p=1)
 function s26_hinaBox(cam, o) {
   const s = o.scale || 1;
-  const a = s26_toScreen(cam, 1, o.x - 260 * s, o.y - 560 * s), b = s26_toScreen(cam, 1, o.x + 260 * s, o.y + 30 * s);
+  const a = s26_toScreen(cam, 1, o.x - 210 * s, o.y - 520 * s), b = s26_toScreen(cam, 1, o.x + 230 * s, o.y + 20 * s);
   return { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y };
 }
 
@@ -461,10 +465,10 @@ function s26_treeData() {
   // canopy domain: a big lopsided dome
   for (let i = 0; i < 95; i++) {
     const a = r(), b = r();
-    const x = lerp(-320, 1040, a) + (r() - 0.5) * 60;
+    const x = lerp(-320, 960, a) + (r() - 0.5) * 60;
     const edge = 1 - Math.abs((a - 0.42) / 0.62) ** 2;            // dome height profile
-    const top = lerp(470, -220, clamp(edge)) + (r() - 0.5) * 50;
-    const y = lerp(top + 40, 470 - 60 * (1 - edge), b ** 1.3);
+    const top = lerp(400, -220, clamp(edge)) + (r() - 0.5) * 50;
+    const y = lerp(top + 40, 400 - 50 * (1 - edge), b ** 1.3);
     const rad = 55 + r() * 85 * (0.6 + 0.4 * edge);
     const subs = [];
     const n = 6 + ((r() * 4) | 0);
@@ -561,7 +565,7 @@ function s26_tree(ctx, T, o) {
   // canopy (cached layers, swaying independently)
   s26_canopy(ctx, T, wind, lights, o.cam);
 }
-const S26_CAN = { x0: -620, y0: -500, w: 1950, h: 1230, sc: 1, layers: 3, wsc: 0.35 };
+const S26_CAN = { x0: -620, y0: -500, w: 1950, h: 1230, sc: 1, layers: 2, wsc: 0.35 };
 function s26_canopyStatic() {
   if (S26.cache.canopy) return S26.cache.canopy;
   const { clusters } = s26_treeData();
@@ -641,7 +645,7 @@ function s26_canopy(ctx, T, wind, lights, cam) {
   if (warm) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = warm.a * 0.3;
+    ctx.globalAlpha = warm.a * 0.14;
     s26_blit(ctx, cam, 1, warm.B, x0, y0, S26_CAN.wsc);
     ctx.restore();
   }
@@ -1099,7 +1103,7 @@ function s2_hinaOpts(T, bust) {
 }
 
 function s2_lights(o, T, cam) {
-  const hp = s26_handPos(o);
+  const hp = s26_lanternPos(o);
   const flick = 0.92 + 0.08 * noise1(T * 6, 3);
   const L = [{ x: hp.x, y: hp.y + 20, gy: o.y, r: 420, a: 0.75 * flick, color: '#ffb347' }];
   // star light on the hill as it dives in
@@ -1135,8 +1139,8 @@ function s2_wide(ctx, T) {
         lx: dx / dl, ly: dy / dl, width: 3 + 4 * clamp(back2), rim: '#ffe7b0', rimA: T > 7.8 ? 0.3 + 0.5 * clamp(back2) : 0.25,
         shade: '#10163a', shadeA: 0.1 + 0.4 * clamp(back2), blur: 5, box: s26_hinaBox(cam, o),
       });
-      const hp = s26_handPos(o);
-      glow(c, hp.x, hp.y + 20, 150, '#ffb347', 0.35);
+      const hp = s26_lanternPos(o);
+      glow(c, hp.x, hp.y, 150, '#ffb347', 0.35);
     },
   });
   s2_whiteout(ctx, T, cam);
@@ -1203,6 +1207,7 @@ function s2_closeup(ctx, T) {
 
 registerScene('s2', {
   draw(ctx, t, T, d) {
+    if (T >= 13.4) { ctx.fillStyle = 'rgb(255,251,238)'; ctx.fillRect(0, 0, W, H); return; }
     if (T >= 8.4 && T < 10.6) s2_closeup(ctx, T);
     else s2_wide(ctx, T);
   },

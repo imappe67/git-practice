@@ -3,8 +3,8 @@
 'use strict';
 
 const S6 = {
-  HX: 860, HY: 918,                 // Hina's feet (world, p=1)
-  K0: { x: 1190, y: 545 },          // Kira's floating spot in front of her
+  HX: 1060, HY: 920,                 // Hina's feet (world, p=1)
+  K0: { x: 1390, y: 540 },          // Kira's floating spot in front of her
   KSIZE: 120,
 };
 
@@ -21,6 +21,7 @@ function s6_hina(T) {
   if (T >= 48.3) expression = 'gentle';
   if (T >= 52.1) expression = 'joy';
   const K = s6_kira(T);
+  const KL = s6_kiraLight(K, T);
   const o = {
     T, x: S6.HX, y: S6.HY, scale: 1.0, facing: 1, view: 'threeQuarter',
     pose: 'hold', armRaise: 0.15 + 0.85 * lift,
@@ -32,6 +33,7 @@ function s6_hina(T) {
     wind: 0.55 + 0.4 * prog(T, 41.5, 44) + 0.1 * noise1(T * 1.5, 4),
     lantern: { glow: T < 42.0 ? 1.0 : lerp(1.0, 0.35, prog(T, 42.0, 42.8)), kiraInside: T < 42.0 },
   };
+  if (KL) o.light = { x: KL.x, y: KL.y, color: '#ffd98a', radius: KL.r, strength: 0.9 };
   if (K) {
     // eyes follow Kira
     const hp = s26_headPos(o);
@@ -48,7 +50,7 @@ function s6_kira(T) {
   let x = S6.K0.x, y = S6.K0.y + bob, size = S6.KSIZE, rot = Math.sin(T * 1.3) * 0.06;
   if (T < 43.3) {
     // burst out of the lantern, swell and float up to face her
-    const hp0 = s26_handPos({ x: S6.HX, y: S6.HY, scale: 1, facing: 1, pose: 'hold', armRaise: 1 });
+    const hp0 = s26_lanternPos({ x: S6.HX, y: S6.HY, scale: 1, facing: 1, view: 'threeQuarter', pose: 'hold', armRaise: 1, lantern: { glow: 1 } });
     const u = prog(T, 42.0, 43.3, Ease.outCubic);
     x = lerp(hp0.x, S6.K0.x, u);
     y = lerp(hp0.y, S6.K0.y + bob, u) - Math.sin(u * Math.PI) * 120;
@@ -57,7 +59,7 @@ function s6_kira(T) {
   }
   if (T > 50.6) {
     // drift close for the forehead touch
-    const o = { x: S6.HX, y: S6.HY, scale: 1, facing: 1, view: 'threeQuarter' };
+    const o = { x: S6.HX, y: S6.HY, scale: 1, facing: 1, view: 'threeQuarter', pose: 'hold', armRaise: 0.15, T, lantern: { glow: 0.35 } };
     const hp = s26_headPos(o);
     const u = prog(T, 50.6, 51.3, Ease.inOutCubic);
     x = lerp(x, hp.x + 175, u);
@@ -88,8 +90,8 @@ function s6_drawKiraFx(ctx, T, K, sc = 1) {
   const s = K.size * sc;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  glow(ctx, K.x, K.y, s * 7, '#ffb347', 0.22);
-  glow(ctx, K.x, K.y, s * 3.2, '#ffe39a', 0.35);
+  glow(ctx, K.x, K.y, s * 7, '#ffa040', 0.11);
+  glow(ctx, K.x, K.y, s * 3.2, '#ffe39a', 0.3);
   // orbit ring: back half
   const r = rng(616);
   const orbit = [];
@@ -111,7 +113,7 @@ function s6_drawKiraFx(ctx, T, K, sc = 1) {
 function s6_emergeFx(ctx, T) {
   const tt = T - 42.0;
   if (tt < -0.4 || tt > 1.6) return;
-  const hp = s26_handPos({ x: S6.HX, y: S6.HY, scale: 1, facing: 1, pose: 'hold', armRaise: 1 });
+  const hp = s26_lanternPos({ x: S6.HX, y: S6.HY, scale: 1, facing: 1, view: 'threeQuarter', pose: 'hold', armRaise: 1, lantern: { glow: 1 } });
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   if (tt < 0) {
@@ -154,8 +156,8 @@ function s6_touchFx(ctx, T, fh, K, sc = 1) {
   } else {
     const tt = T - 51.5;
     const bloom = Math.exp(-tt * 2.2);
-    glow(ctx, fh.x, fh.y, (60 + 260 * (1 - Math.exp(-tt * 4))) * sc, '#fff3c0', (0.35 + 0.6 * bloom) * fade);
-    glow(ctx, fh.x, fh.y, 26 * sc, '#ffffff', fade);
+    glow(ctx, fh.x, fh.y, (60 + 220 * (1 - Math.exp(-tt * 4))) * sc, '#ffe6a8', (0.18 + 0.4 * bloom) * fade);
+    glow(ctx, fh.x, fh.y, 22 * sc, '#ffffff', 0.75 * fade);
     sparkle(ctx, fh.x, fh.y, (18 + 10 * Math.sin(T * 8)) * sc, '#ffffff', fade, T);
     // chime rings
     for (let i = 0; i < 3; i++) {
@@ -202,12 +204,12 @@ function s6_drawHinaWorld(ctx, T, cam, o, K) {
   const zoom = cam.zoom || 1;
   s26_litActor(ctx, (c) => drawHina(c, o), {
     lx, ly, width: 3 + 3 * zoom, rim: '#ffe2a0', rimA: K ? 0.75 : 0.35,
-    shade: '#141a44', shadeA: 0.12, blur: 3 * zoom, box: s26_hinaBox(cam, o),
+    shade: '#141a44', shadeA: 0, blur: 3 * zoom, box: s26_hinaBox(cam, o),
   });
 }
 
 function s6_lights(T, o, K) {
-  const hp = s26_handPos(o);
+  const hp = s26_lanternPos(o);
   const lg = o.lantern.glow;
   const L = [{ x: hp.x, y: hp.y + 20, gy: o.y, r: 300 + 250 * lg, a: 0.3 + 0.5 * lg, color: '#ffb347' }];
   const KL = s6_kiraLight(K, T);
@@ -230,14 +232,14 @@ function s6_worldShot(ctx, T, cam, { drawHinaInSet = true } = {}) {
     actors: (c) => {
       if (drawHinaInSet) {
         s6_drawHinaWorld(c, T, cam, o, K);
-        const hp = s26_handPos(o);
-        glow(c, hp.x, hp.y + 20, 120 + 120 * o.lantern.glow, '#ffb347', 0.25 + 0.3 * o.lantern.glow);
+        const hp = s26_lanternPos(o);
+        glow(c, hp.x, hp.y, 120 + 120 * o.lantern.glow, '#ffb347', 0.25 + 0.3 * o.lantern.glow);
       }
       s6_emergeFx(c, T);
       if (K) s6_drawKiraFx(c, T, K);
       if (K && drawHinaInSet) {
         const hp = s26_headPos(o);
-        const fh = { x: hp.x + hp.r * 0.25, y: hp.y - hp.r * 0.35 };
+        const fh = hp.forehead || { x: hp.x + hp.r * 0.25, y: hp.y - hp.r * 0.35 };
         s6_touchFx(c, T, fh, K);
       }
     },
@@ -249,25 +251,25 @@ function s6_worldShot(ctx, T, cam, { drawHinaInSet = true } = {}) {
 // A: wide (41.5–43.4): lantern lifted, Kira bursts out
 function s6_shotA(ctx, T) {
   const u = prog(T, 41.5, 43.4, Ease.inOutQuad);
-  s6_worldShot(ctx, T, { x: 990 + u * 30, y: 520 + u * 10, zoom: 1.02 + u * 0.1 });
+  s6_worldShot(ctx, T, { x: 1060 + u * 40, y: 520 + u * 10, zoom: 1.02 + u * 0.1 });
 }
 // B: medium two-shot (43.4–45.9)
 function s6_shotB(ctx, T) {
   const u = prog(T, 43.4, 45.9, Ease.inOutQuad);
-  s6_worldShot(ctx, T, { x: 1010 + u * 10, y: 590 - u * 5, zoom: 1.62 + u * 0.1 });
+  s6_worldShot(ctx, T, { x: 1215 + u * 10, y: 590 - u * 5, zoom: 1.62 + u * 0.1 });
 }
 // C: close-up on Hina (45.9–48.1) — bust, teary then smiling
 function s6_shotC(ctx, T) {
   const u = prog(T, 45.9, 48.1, Ease.inOutQuad);
-  const cam = { x: 900 + u * 10, y: 520, zoom: 2.3 + u * 0.12 };
+  const cam = { x: 1120 + u * 10, y: 520, zoom: 2.3 + u * 0.12 };
   const K = s6_kira(T);
   const o = s6_hina(T);
   const lights = s6_lights(T, o, K);
   s26_drawSet(ctx, T, cam, { lights, wind: s6_wind(T), fireflies: 10, drift: { n: 30, wind: s6_wind(T), seed: 647 } });
   // Kira's glow spilling in from off-frame right
   const ks = s26_toScreen(cam, 1, K.x, K.y);
-  glow(ctx, Math.min(ks.x, W + 150), ks.y, 900, '#ffd98a', 0.38);
-  glow(ctx, Math.min(ks.x, W + 150), ks.y, 380, '#fff3c0', 0.3);
+  glow(ctx, Math.min(ks.x, W + 100), ks.y, 1100, '#ffc870', 0.45);
+  glow(ctx, Math.min(ks.x, W + 100), ks.y, 420, '#fff3c0', 0.45);
   const hb = {
     ...o, x: 760 - u * 12, y: 1180, scale: 2.35, bust: true,
     lookX: 0.75, lookY: -0.25, headTilt: -0.1 + 0.03 * Math.sin(T * 0.8),
@@ -320,7 +322,7 @@ function s6_shotD(ctx, T) {
 function s6_shotE(ctx, T) {
   const u = prog(T, 50.6, 51.6, Ease.inOutQuad);
   const rise = prog(T, 52.0, 53.0, Ease.inOutQuad);
-  s6_worldShot(ctx, T, { x: 985 + u * 20, y: 560 - rise * 70, zoom: 1.95 + u * 0.12 - rise * 0.1 });
+  s6_worldShot(ctx, T, { x: 1185 + u * 20, y: 560 - rise * 70, zoom: 1.95 + u * 0.12 - rise * 0.1 });
 }
 
 registerScene('s6', {

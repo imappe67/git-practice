@@ -507,7 +507,9 @@ const s3_HZ = 0.97;                      // Hina's depth
 const s3_HX_END = 790;                   // where she kneels (world x)
 const s3_CR = { x: s34_zx(s34_CRATER.X, 1), y: s34_zy(1) };   // crater centre (≈1060, 805)
 const s3_RUN = [13.8, 15.0];
-const s3_STEP_HZ = 4.4;                  // footfalls per second (2.2 run cycles/s)
+const s3_STEP_HZ = 4.4;
+const s3_LANTERN_GLOW = 0.4;
+const s3_PLANT = 16.3;   // off-screen (cut) she plants the lantern stick beside her                  // footfalls per second (2.2 run cycles/s)
 
 function s3_hinaX(T) {
   const p = invLerp(s3_RUN[0], s3_RUN[1], T);
@@ -533,9 +535,10 @@ function s3_hina(T) {
     mouth: mouthAt('hina', T), blink: blinkAt(T, 21), wind: 0.25, lookX: 0.5, lookY: 0.5, headTilt: 0 };
   if (T < s3_RUN[1]) {
     o.pose = 'run'; o.runPhase = ((T - s3_RUN[0]) * 2.2) % 1; o.expression = 'worried'; o.lookY = 0.2;
-    o.wind = 0.7;
+    o.wind = 0.7; o.lantern = { glow: s3_LANTERN_GLOW };
   } else {
-    o.pose = 'kneel'; o.expression = 'worried';
+    o.pose = 'kneel'; o.kneel = true; o.expression = 'worried';
+    if (T < s3_PLANT) o.lantern = { glow: s3_LANTERN_GLOW };
     const k = T - s3_RUN[1];
     o.y += 10 * Math.exp(-k * 7) * Math.sin(k * 18);   // settle bounce
     o.headTilt = 0.1 * prog(T, 15.2, 16.0);
@@ -686,6 +689,8 @@ registerScene('s3', {
     const cam = s3_camera(T);
     const hina = T >= s3_RUN[0] ? s3_hina(T) : null;
     const kira = s3_kira(T, hina);
+    if (hina) hina.light = [{ x: kira.x, y: kira.y, color: '#ffd76a', radius: 420, strength: 0.35 + 0.5 * kira.glow },
+      { x: s3_CR.x, y: s3_CR.y, color: '#ff9a3c', radius: 380, strength: 0.4 }];
     const heat = 0.75 + 0.15 * noise1(T * 3, 5) - 0.25 * prog(T, 14, 24);
     const sy = s34_horizon(cam);
 

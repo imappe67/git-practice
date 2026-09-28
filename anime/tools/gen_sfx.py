@@ -48,7 +48,7 @@ BED_DIALOGUE_DUCK = 0.72  # bed gain while someone is speaking
 FOLEY_DIALOGUE_DUCK = 0.8  # footsteps / small foley gain while someone is speaking
 
 # musical key for all pitched sparkles (major pentatonic)
-KEY_HZ = 587.33            # D5
+KEY_HZ = 554.37            # Db5 (matches the score in Db major)
 PENTA = [0, 2, 4, 7, 9]
 
 CUES = dict(
@@ -86,10 +86,13 @@ CUES = dict(
     kira_emerges=dict(t=42.0, dur=2.6),
     forehead_touch=dict(t=51.5, pan=0.0),
     # s7 ---------------------------------------------------------------
-    launch=dict(t0=53.0, t1=54.6, pan=0.0),
-    burst=dict(t=54.6, grains=700),
-    shower=dict(t0=54.6, t1=58.0, whooshes=42),
-    constellation=dict(t0=55.5, t1=57.5, ticks=14),
+    launch=dict(t0=53.0, t1=54.6, pan=0.0, pulse=53.0),
+    anticipation=dict(t0=54.3, t1=54.6),
+    burst=dict(t=54.6, grains=700, rings_end=56.3),
+    # meteors: heaviest t0..heavy_end, thinning until t1
+    shower=dict(t0=54.7, heavy_end=56.0, t1=58.9, whooshes=46),
+    constellation=dict(glide=(55.5, 56.9), waves=[56.0, 56.2, 56.4, 56.6, 56.8, 57.0, 57.2]),
+    titles=[dict(t0=1.0, t1=2.8, level=0.5), dict(t0=56.8, t1=58.2, level=1.0)],
     fade_out=dict(t0=58.6, t1=60.0),
 )
 
@@ -968,10 +971,10 @@ def fx_burst(mix):
     t = ts(secs(d))
     f = 45 + 50 * np.exp(-t / 0.12)
     fw = np.sin(TAU * np.cumsum(f) / SR) * np.exp(-t / 0.45) * np.clip(t / 0.004, 0, 1)
-    mix.add(fade(fw, 0.001, 0.8), T0, gain=0.3, rl=0.2)
+    mix.add(fade(fw, 0.001, 0.8), T0, gain=0.42, rl=0.2)
     nb = secs(1.8)
     xb = np.linspace(0, 1, nb)
-    mix.add(whoosh(nb, 9000 * 2 ** (-2.5 * xb), ad_env(1.8, 0.004, 0.35), 0.0, 1.0, rg, 1.2), T0, gain=0.12, rs=0.2, rl=0.4)
+    mix.add(whoosh(nb, 9000 * 2 ** (-2.5 * xb), ad_env(1.8, 0.004, 0.35), 0.0, 1.0, rg, 1.2), T0, gain=0.2, rs=0.2, rl=0.4)
     # hundreds of tiny bell grains, stereo-wide
     k = c["grains"]
     gt = np.concatenate([rg.exponential(0.3, int(k * 0.75)), rg.uniform(0.2, 2.0, k - int(k * 0.75))])
@@ -982,48 +985,102 @@ def fx_burst(mix):
     sparkle_cloud(mix, T0 + gt, pans, [penta(d_) for d_ in degs], taus, amps, rg, rs=0.1, rl=0.55)
 
 
+def fx_launch_extras(mix):
+    """launch pulse at lift-off, anticipation swell into the burst, expanding ring shimmer after it."""
+    rg = R(122)
+    c = CUES["launch"]
+    d = 1.2
+    t = ts(secs(d))
+    f = 60 + 90 * np.exp(-t / 0.05)
+    th = np.sin(TAU * np.cumsum(f) / SR) * np.exp(-t / 0.18) * np.clip(t / 0.002, 0, 1)
+    mix.add(fade(th, 0.0005, 0.4), c["pulse"], gain=0.18, rl=0.2)
+    for deg, p in [(5, -0.2), (7, 0.2), (10, 0.0)]:
+        mix.add(tink(penta(deg), 0.8, rg, kind=GLASS, trem=0.2), c["pulse"] + 0.01, pan=p, gain=0.03, rl=0.5)
+    a = CUES["anticipation"]
+    d = a["t1"] - a["t0"]
+    n = secs(d + 0.02)
+    x = np.linspace(0, 1, n)
+    env = x ** 3 * seg_env(d + 0.02, 0.05, 0.02)
+    mix.add(whoosh(n, 2000 * 2 ** (2.2 * x), env, 0.0, 0.2 + 0.8 * x ** 4, rg, 1.2), a["t0"], gain=0.12, rl=0.2)
+    b = CUES["burst"]
+    d = b["rings_end"] - b["t"] + 1.0
+    n = secs(d)
+    x = np.linspace(0, 1, n)
+    for i, deg in enumerate([15, 17, 19]):        # rings: shimmering tremolo tones widening outward
+        tl = ts(n)
+        tone = np.sin(TAU * penta(deg) * tl) * (0.6 + 0.4 * np.sin(TAU * (6 + 2 * i) * tl)) * hump(n, 0.15, 1.5)
+        mix.add(fade(tone), b["t"] + 0.05 * i, pan=(-1) ** i * np.minimum(x * 1.4, 0.9), gain=0.008, rl=0.5)
+
+
 def fx_shower(mix):
     c = CUES["shower"]
     rg = R(118)
+    heavy = c["heavy_end"] - c["t0"]
     span = c["t1"] - c["t0"]
-    for _ in range(c["whooshes"]):
-        t0 = c["t0"] + 0.2 + span * rg.beta(1.1, 2.0)
+
+    def density(tt):   # relative meteor density: flat while heavy, then thinning out to t1
+        return 1.0 if tt < c["heavy_end"] else max(0.0, 1 - (tt - c["heavy_end"]) / (c["t1"] - c["heavy_end"])) ** 1.5
+
+    # sample start times by rejection so density follows the curve
+    starts = []
+    while len(starts) < c["whooshes"]:
+        tt = c["t0"] + rg.random() * span
+        if rg.random() < density(tt):
+            starts.append(tt)
+    for t0 in sorted(starts):
         d = rg.uniform(0.3, 0.8)
         n = secs(d)
         x = np.linspace(0, 1, n)
         p0 = rg.uniform(-0.9, 0.9)
         p1 = np.clip(p0 + rg.choice([-1, 1]) * rg.uniform(0.3, 0.7), -1, 1)
-        fall = np.exp(-(t0 - c["t0"]) / 2.5)
+        lv = 0.35 + 0.65 * density(t0)
         mix.add(whoosh(n, 7500 * 2 ** (-1.4 * x), hump(n, 0.35, 1.5), p0 + (p1 - p0) * x, 0.1, rg, 0.7),
-                t0, gain=0.03 * (0.35 + 0.65 * fall) * rg.uniform(0.5, 1.0), rl=0.35)
+                t0, gain=0.03 * lv * rg.uniform(0.5, 1.0), rl=0.35)
         mix.add(tink(penta(rg.integers(14, 22)), rg.uniform(0.15, 0.4), rg), t0 + d * 0.8, pan=float(p1),
-                gain=0.012 * (0.4 + 0.6 * fall), rl=0.5)
+                gain=0.012 * lv, rl=0.5)
     # continuous twinkle bed, thinning out
-    tt = c["t0"] + 0.3
-    end = c["t1"] + 0.6
-    while tt < end:
-        xx = (tt - c["t0"]) / (end - c["t0"])
-        tt += rg.exponential(1 / (30 * (1 - xx) ** 2 + 2))
+    tt = c["t0"]
+    while tt < c["t1"]:
+        dn = density(tt)
+        tt += rg.exponential(1 / (28 * dn + 2))
         mix.add(tink(penta(rg.integers(12, 23)), rg.uniform(0.05, 0.3), rg), tt, pan=rg.uniform(-1, 1),
-                gain=0.008 * (1 - 0.7 * xx) * rg.uniform(0.3, 1.0), rl=0.5)
+                gain=0.008 * (0.3 + 0.7 * dn) * rg.uniform(0.3, 1.0), rl=0.5)
 
 
 def fx_constellation(mix):
     c = CUES["constellation"]
     rg = R(119)
-    k = c["ticks"]
-    times = np.linspace(c["t0"], c["t1"], k) + rg.uniform(-0.04, 0.04, k)
-    deg, p = 10, -0.7
-    for i, t0 in enumerate(times):
-        deg = int(np.clip(deg + rg.choice([-1, 1, 1, 2]), 8, 20))
-        p = float(np.clip(p + rg.uniform(-0.1, 0.3), -0.8, 0.8))
-        mix.add(tink(penta(deg), rg.uniform(0.25, 0.5), rg), t0, pan=p, gain=0.035, rs=0.1, rl=0.45)
-        mix.add(tink(penta(deg) * 4.01, 0.02, rg), t0, pan=p, gain=0.012)   # glassy "tick" transient
-        if i < k - 1:   # thin line of light drawn to the next star
-            d = times[i + 1] - t0
-            n = secs(d)
-            line = chirp_tone(np.full(n, penta(deg + 5)), hump(n, 0.2, 2)) * 0.3
-            mix.add(fade(line), t0 + 0.02, pan=p, gain=0.004, rl=0.3)
+    # stars gliding into place: soft upward glissando glints
+    g0, g1 = c["glide"]
+    for _ in range(22):
+        t0 = g0 + rg.random() * (g1 - g0 - 0.3)
+        d = rg.uniform(0.25, 0.5)
+        n = secs(d)
+        x = np.linspace(0, 1, n)
+        f = penta(rg.integers(14, 20)) * 2 ** (-0.25 * (1 - x))
+        p = rg.uniform(-0.8, 0.8)
+        mix.add(fade(chirp_tone(f, hump(n, 0.7, 2))), t0, pan=p, gain=0.004, rl=0.5)
+    # line-drawing waves: a small glassy chord of ticks per wave, climbing
+    for i, t0 in enumerate(c["waves"]):
+        base = 8 + i
+        for j, off in enumerate([0, 2, 4][: 2 + (i % 2)]):
+            p = float(np.clip(rg.uniform(-0.8, 0.8), -1, 1))
+            tt = t0 + j * 0.03
+            mix.add(tink(penta(base + off), rg.uniform(0.3, 0.55), rg), tt, pan=p, gain=0.03 * (0.8 ** j), rs=0.1, rl=0.45)
+            mix.add(tink(penta(base + off) * 4.01, 0.02, rg), tt, pan=p, gain=0.012)   # glassy "tick" transient
+        n = secs(0.2)                                         # the line zipping between stars
+        mix.add(whoosh(n, 6000 * 2 ** np.linspace(0, 0.5, n), hump(n, 0.3, 2), rg.uniform(-0.6, 0.6), 0.2, rg, 0.5),
+                t0, gain=0.006, rl=0.3)
+
+
+def fx_titles(mix):
+    """very soft shimmer swells for the title reveals (music will carry most of this)."""
+    rg = R(123)
+    for c in CUES["titles"]:
+        d = c["t1"] - c["t0"] + 1.5
+        for deg, p in [(10, -0.5), (12, 0.5), (14, -0.2), (15, 0.2)]:
+            s = bell(penta(deg), d, GLASS[0], [2.0, 0.9, 0.45, 0.25], [1, 0.2, 0.06, 0.02], rg, attack=0.6, trem=0.3)
+            mix.add(s, c["t0"] + 0.1 * (deg - 10), pan=p, gain=0.008 * c["level"], rl=0.6)
 
 
 # =============================================================================
@@ -1092,9 +1149,11 @@ def main():
     fx_emerge(mix)
     fx_forehead(mix)
     fx_launch(mix)
+    fx_launch_extras(mix)
     fx_burst(mix)
     fx_shower(mix)
     fx_constellation(mix)
+    fx_titles(mix)
 
     print("reverb ...")
     irs = make_ir(0.9, 1.3, 0.012, 3500, 901)
