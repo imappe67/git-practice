@@ -86,7 +86,7 @@ async function video(opt) {
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const n = Math.round((to - from) * fps);
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-',
-    '-c:v', 'libx264', '-preset', opt.preset || 'medium', '-crf', opt.crf || '16', '-pix_fmt', 'yuv420p', '-tune', 'animation', out],
+    '-c:v', 'libx264', '-preset', opt.preset || 'slow', '-crf', opt.crf || '19', '-pix_fmt', 'yuv420p', '-tune', 'animation', out],
   { stdio: ['pipe', 'inherit', 'inherit'] });
   const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });
   const pages = await Promise.all(Array.from({ length: workers }, () => openPage(browser)));

@@ -107,7 +107,7 @@ def main():
     mix = voice * 1.0 + music * 0.62 * duck_music[:, None] + sfx * 0.7 * duck_sfx[:, None]
 
     # --- master: gentle glue + limiter + fades
-    mix = limiter(mix * 1.0)
+    mix = limiter(mix * 1.75)   # about +5 dB so the programme lands near -16 LUFS
     fade = int(0.02 * SR)
     mix[:fade] *= np.linspace(0, 1, fade)[:, None]
     mix[-fade:] *= np.linspace(1, 0, fade)[:, None]

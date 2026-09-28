@@ -345,9 +345,10 @@ function ch_hinaRig(o) {
   if (L && pose !== 'run') {
     // front hand always grips the lantern stick
     if (pose === 'stand' || pose === 'lookUp' || kneel && pose === 'kneel') {
-      aF = kneel ? { a1: lerp(0.62, 1.5, ar), a2: lerp(0.62, 0.25, ar), hand: 'grip' }
-        : { a1: lerp(0.25, 1.85, ar), a2: lerp(0.95, 0.3, ar), hand: 'grip' };
-      if (sym) aF = { a1: lerp(0.12, 1.2, ar), a2: lerp(0.35, 0.3, ar), hand: 'grip' };
+      const la = o.bust ? Math.max(ar, 0.62) : ar;   // close-ups: keep the lantern in frame
+      aF = kneel ? { a1: lerp(0.62, 1.5, la), a2: lerp(0.62, 0.25, la), hand: 'grip' }
+        : { a1: lerp(0.25, 1.85, la), a2: lerp(0.95, 0.3, la), hand: 'grip' };
+      if (sym) aF = { a1: lerp(0.12, 1.2, la), a2: lerp(0.35, 0.3, la), hand: 'grip' };
     } else aF.hand = aF.hand === 'palm' ? 'grip' : aF.hand === 'open' ? 'grip' : 'grip';
   }
   const mk = (S, A, m, isF) => {
@@ -824,7 +825,7 @@ function ch_hinaArm(ctx, R, A, far) {
   const skin = far ? mixColor(CH_C.skin, CH_C.skinSh, 0.55) : CH_C.skin;
   const T = R.T;
   const up = clamp(-A.fd[1]);                 // forearm pointing up => sleeve slides down
-  const cuffK = lerp(0.42, 0.02, up);
+  const cuffK = lerp(far ? 0.6 : 0.42, 0.02, up);
   const C = ch_add(A.E, ch_sub(A.W, A.E), cuffK);
   // exposed forearm + hand (drawn before sleeve)
   const fore = ch_limbPath([ch_mix(A.E, A.W, Math.max(0, cuffK - 0.1)), A.W], [7.2, 6]);
@@ -842,7 +843,8 @@ function ch_hinaArm(ctx, R, A, far) {
   let n2 = [-u2[1] * sgn, u2[0] * sgn];
   const nm = ch_norm(ch_add(n1, n2));
   const hw1 = 13, hw2 = 12.5;
-  const depth = 30 + 6 * (1 - Math.abs(u1[1])) + R.wind * 6;
+  const upA = clamp(-u1[1]);                     // upper arm raised: the sleeve slides down to the shoulder
+  const depth = (30 + 6 * (1 - Math.abs(u1[1])) + R.wind * 6) * (1 - 0.6 * upA);
   const sway = R.wind * 7 * nz + (R.run ? 6 * Math.sin(R.ph * 2 + (far ? 2 : 0)) : 0) + Math.sin(T * 1.8 + (far ? 1 : 0)) * 1.2;
   const sv = [sway * R.windX + (R.run ? -8 : 0), 0];
   const top0 = ch_add(A.S, n1, -hw1 * 0.85), topE = ch_add(A.E, nm, -hw1), topC = ch_add(C, n2, -hw2);
