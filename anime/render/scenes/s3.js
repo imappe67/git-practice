@@ -16,10 +16,15 @@ function s34_buf(name, w, h) {
   if (!c) { c = document.createElement('canvas'); c.width = w; c.height = h; s34_cache['buf_' + name] = c; }
   return c;
 }
+// setTransform honouring an optional pre-scale on the target context (for half-res buffers)
+function s34_setT(ctx, a, b, c, d, e, f) {
+  const p = ctx.s34pre || 1;
+  ctx.setTransform(a * p, b * p, c * p, d * p, e * p, f * p);
+}
 // world -> screen matrix for a camera
 function s34_world(ctx, cam) {
   const z = cam.zoom;
-  ctx.setTransform(z, 0, 0, z, W / 2 - cam.x * z, H / 2 - cam.y * z);
+  s34_setT(ctx, z, 0, 0, z, W / 2 - cam.x * z, H / 2 - cam.y * z);
 }
 function s34_horizon(cam) { return (s34_HY - cam.y) * cam.zoom + H / 2; }
 // background layers: parallax p (0 = fixed, 1 = world), keep the horizon glued to the ground's
@@ -65,14 +70,33 @@ function s34_sky(ctx, cam, T, mirror, dim = 1) {
     for (const q of m) glow(g, q.x, q.y, q.r, q.c, q.a);
     s34_cache.milky = mc;
   }
+  // faint, non-twinkling stars: cached at full res in sky space
+  let fc = s34_cache.faint;
+  if (!fc) {
+    fc = document.createElement('canvas'); fc.width = 2800; fc.height = 1270;
+    const g = fc.getContext('2d');
+    for (const st of stars) {
+      if (st.s >= 0.6) continue;
+      const size = 0.7 + st.s * 1.3;
+      g.globalAlpha = 0.55 * (0.4 + st.s * 0.6);
+      g.fillStyle = st.col;
+      g.fillRect(st.x + 440 - size / 2, st.y - (s34_HY - 1260) - size / 2, size, size);
+    }
+    s34_cache.faint = fc;
+  }
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.globalAlpha = dim;
-  if (mirror) ctx.setTransform(a * 4, 0, 0, -a * 4, e + a * -500, 2 * sy - f - a * -800);
-  else ctx.setTransform(a * 4, 0, 0, a * 4, e - 500 * a, f - 800 * a);
+  if (mirror) s34_setT(ctx, a * 4, 0, 0, -a * 4, e + a * -500, 2 * sy - f - a * -800);
+  else s34_setT(ctx, a * 4, 0, 0, a * 4, e - 500 * a, f - 800 * a);
   ctx.drawImage(mc, 0, 0);
+  if (!mirror) {
+    s34_setT(ctx, a, 0, 0, a, e - 440 * a, f + (s34_HY - 1260) * a);
+    ctx.drawImage(fc, 0, 0);
+  }
   ctx.restore();
   for (const st of stars) {
+    if (st.s < 0.6) continue;
     const x = a * st.x + e, y = Y(st.y);
     if (x < -5 || x > W + 5 || y < -5 || y > H + 5) continue;
     if (mirror ? y < sy || st.s < 0.55 : y > sy) continue;
@@ -172,8 +196,8 @@ function s34_drawBg(ctx, cam, T, mirror = false, dim = 1) {
   const [a, e, f] = s34_bgMat(cam, 0.3, 0.4);
   const sy = s34_horizon(cam);
   const img = s34_bgLayer();
-  if (mirror) ctx.setTransform(a, 0, 0, -a, e, 2 * sy - f);
-  else ctx.setTransform(a, 0, 0, a, e, f);
+  if (mirror) s34_setT(ctx, a, 0, 0, -a, e, 2 * sy - f);
+  else s34_setT(ctx, a, 0, 0, a, e, f);
   ctx.drawImage(img, s34_BG.x0, s34_BG.y0);
   // village lights + tōrō on the hill
   ctx.save();
@@ -185,7 +209,7 @@ function s34_drawBg(ctx, cam, T, mirror = false, dim = 1) {
   const lx = 1690, ly = s34_hillY(1690) - 6;
   glow(ctx, lx, ly, 18, '#ffb347', 0.5 * dim);
   ctx.restore();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  s34_setT(ctx, 1, 0, 0, 1, 0, 0);
 }
 // Village light reflections: long soft vertical streaks in the water (screen space)
 function s34_villageStreaks(ctx, cam, T, amt = 1) {
@@ -221,7 +245,7 @@ function s34_rows(ctx, cam, T, zNear, zFar, opt = {}) {
     const by = s34_zy(z), s = s34_K / z;
     if (by - 0.4 * s > y1) continue;
     const step = 0.3 * Math.max(1, z / 1.8);
-    const nb = z < 1.3 ? 6 : z < 2.6 ? 4 : 3;
+    const nb = z < 1.3 ? 6 : z < 2.6 ? 4 : 2;
     const off = hash(ri * 13) * step;
     const iA = Math.floor(((x0 - W / 2) / s - off) / step) - 1, iB = Math.ceil(((x1 - W / 2) / s - off) / step) + 1;
     const p = new Path2D(), tips = new Path2D();
@@ -686,16 +710,17 @@ function s3_clear(X, z) {
 function s3_drawWater(ctx, cam, T, hina, kira, heat) {
   const sy = s34_horizon(cam);
   if (sy >= H) return;
-  const b = s34_buf('water', W, H);
+  const b = s34_buf('waterh', W / 2, H / 2);
   const g = b.getContext('2d');
+  g.s34pre = 0.5;
   const top = Math.max(0, Math.floor(sy));
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  s34_setT(g, 1, 0, 0, 1, 0, 0);
   const wg = g.createLinearGradient(0, sy, 0, H);
   wg.addColorStop(0, '#2a4677'); wg.addColorStop(0.25, '#16295a'); wg.addColorStop(1, '#070d24');
   g.fillStyle = wg; g.fillRect(0, top, W, H - top);
   s34_sky(g, cam, T, true, 0.75);
   s34_drawBg(g, cam, T, true, 0.9);
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  s34_setT(g, 1, 0, 0, 1, 0, 0);
   g.fillStyle = 'rgba(6,12,32,0.28)'; g.fillRect(0, top, W, H - top);
   s34_villageStreaks(g, cam, T);
   // Hina's reflection
@@ -720,7 +745,7 @@ function s3_drawWater(ctx, cam, T, hina, kira, heat) {
     glow(g, 0, 0, 90, '#ffd76a', 0.3 * kira.glow);
     g.restore();
   }
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  s34_setT(g, 1, 0, 0, 1, 0, 0);
   // composite with a horizontal ripple wobble
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -729,7 +754,7 @@ function s3_drawWater(ctx, cam, T, hina, kira, heat) {
     const d = (y - sy) / (H - sy + 1);
     const amp = (0.6 + d * 5) * Math.min(cam.zoom, 2);
     const dx = amp * Math.sin(y * 0.11 / Math.min(cam.zoom, 2) + T * 2.3) + amp * 0.5 * noise1(y * 0.05 + T * 1.5, 7);
-    ctx.drawImage(b, 0, y, W, strip, dx, y, W, strip);
+    ctx.drawImage(b, 0, y / 2, W / 2, strip / 2, dx, y, W, strip);
   }
   ctx.restore();
 }

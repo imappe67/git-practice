@@ -63,9 +63,9 @@ CUES = dict(
     run_s3=dict(t0=13.8, t1=15.0, rate=4.4, pan=(-0.8, -0.1)),
     kneel=dict(t=15.0, pan=-0.08),
     sobs=dict(times=[14.0, 16.35, 17.7, 19.45], pan=0.12),
-    hop=dict(t=23.3, land=23.42, pan=(0.15, -0.05)),
+    hop=dict(t=23.05, land=23.35, pan=(0.15, -0.05)),
     # s4 ---------------------------------------------------------------
-    lantern=dict(t0=29.9, t1=30.4, chime=30.3, pan=0.05),
+    lantern=dict(t0=29.72, t1=30.05, chime=30.05, pan=0.05),
     # s5 ---------------------------------------------------------------
     # step rate ramps linearly rate[0] → rate[1] steps/s (run cycle 2.3 → 3.2 cycles/s, 2 steps/cycle)
     run_s5=dict(t0=31.0, t1=41.5, rate=(4.6, 6.4),
