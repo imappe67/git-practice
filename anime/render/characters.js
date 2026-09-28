@@ -1592,7 +1592,7 @@ function ch_hinaHairFront(ctx, R, phi, lw, lights) {
 const CH_KEXPR = {
   cry:       { eyes: 'cry', mouth: 'wobble', brow: -1, blush: 0.8, tears: 1, arms: 'eyes' },
   neutral:   { eyes: 'open', mouth: 'small', brow: 0, blush: 0.6, arms: 'down' },
-  hope:      { eyes: 'sparkle', mouth: 'smallOpen', brow: -0.4, blush: 0.8, arms: 'clasp', lookY: -0.5 },
+  hope:      { eyes: 'sparkle', mouth: 'smallOpen', brow: -0.4, blush: 0.8, arms: 'up', lookY: -0.5 },
   happy:     { eyes: 'happy', mouth: 'big', brow: 0, blush: 1, arms: 'up' },
   gentle:    { eyes: 'soft', mouth: 'soft', brow: -0.2, blush: 0.8, arms: 'down' },
   surprised: { eyes: 'wide', mouth: 'o', brow: 0.5, blush: 0.5, arms: 'up' },
