@@ -60,6 +60,17 @@ function s26_headPos(o) {
   if (o.bust) return { x: o.x, y: o.y - 200 * s, r: 80 * s };
   return { x: o.x + 5 * s * (o.facing || 1), y: o.y - 330 * s, r: 75 * s };
 }
+// move a (bust) Hina so her head centre lands on screen point (hx, hy)
+function s26_placeHead(o, hx, hy) {
+  const p = s26_headPos({ ...o, x: 0, y: 0 });
+  return { ...o, x: hx - p.x, y: hy - p.y };
+}
+// bust close-up: scale so the chest bottom sits at `bottom` and the head centre at (hx, hy)
+function s26_bustFit(o, hx, hy, bottom = H + 30) {
+  const p = s26_headPos({ ...o, x: 0, y: 0, scale: 1 });
+  const s = (bottom - hy) / Math.max(20, -p.y);
+  return s26_placeHead({ ...o, scale: s }, hx, hy);
+}
 function s26_lanternPos(o) {
   if (typeof hinaLanternPos === 'function' && o.lantern) { const p = hinaLanternPos(o); if (p) return p; }
   return s26_handPos(o);
@@ -441,7 +452,7 @@ function s26_litActor(ctx, draw, o) {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = clamp(o.rimA);
     ctx.drawImage(R, bx, by, bw, bh, bx, by, bw, bh);
-    if (o.blur !== 0) {
+    if (o.softRim) {
       // cheap soft bloom: a few offset copies at low alpha
       const bl = o.blur || 4;
       ctx.globalAlpha = clamp(o.rimA) * 0.45;
@@ -453,7 +464,7 @@ function s26_litActor(ctx, draw, o) {
 // screen-space box around a standing Hina drawn with options o under camera cam (p=1)
 function s26_hinaBox(cam, o) {
   const s = o.scale || 1;
-  const a = s26_toScreen(cam, 1, o.x - 210 * s, o.y - 520 * s), b = s26_toScreen(cam, 1, o.x + 230 * s, o.y + 20 * s);
+  const a = s26_toScreen(cam, 1, o.x - 340 * s, o.y - 600 * s), b = s26_toScreen(cam, 1, o.x + 400 * s, o.y + 60 * s);
   return { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y };
 }
 
@@ -1136,7 +1147,7 @@ function s2_wide(ctx, T) {
       const dx = ss.x - hs.x, dy = ss.y - hs.y, dl = Math.hypot(dx, dy) || 1;
       const back2 = prog(T, 11.2, 12.6) + (T > 12.6 ? 1 : 0);
       s26_litActor(c, (b) => drawHina(b, o), {
-        lx: dx / dl, ly: dy / dl, width: 3 + 4 * clamp(back2), rim: '#ffe7b0', rimA: T > 7.8 ? 0.3 + 0.5 * clamp(back2) : 0.25,
+        lx: dx / dl, ly: dy / dl, width: 2 + 3 * clamp(back2), rim: '#ffe7b0', rimA: T > 11.2 ? 0.45 * clamp(back2) : 0,
         shade: '#10163a', shadeA: 0.1 + 0.4 * clamp(back2), blur: 5, box: s26_hinaBox(cam, o),
       });
       const hp = s26_lanternPos(o);
@@ -1192,11 +1203,11 @@ function s2_closeup(ctx, T) {
   ctx.drawImage(cu.crest, 0, 0, cu.crest.width, cu.crest.height, -20, 0, W + 40, H);
   ctx.drawImage(cu.leaves, 0, 0, cu.leaves.width, cu.leaves.height, Math.sin(T * 0.8) * 10 - 30, Math.sin(T * 0.6) * 5 - 20, W + 60, H + 40);
   const o = s2_hinaOpts(T);
-  const hb = {
-    ...o, x: 700 - u * 20, y: 1150, scale: 2.2, bust: true, view: 'threeQuarter', facing: 1,
+  const hb = s26_bustFit({
+    ...o, bust: true, view: 'threeQuarter', facing: 1,
     lookX: 0.6, lookY: -0.7, headTilt: -0.1, wind: 0.35,
     lantern: null,
-  };
+  }, 640 - u * 20, 690 - u * 10);
   // warm under-light from the lantern + cool sky rim
   glow(ctx, hb.x + 260, 1080, 520, '#ffb347', 0.35);
   drawHina(ctx, hb);

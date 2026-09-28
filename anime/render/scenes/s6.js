@@ -203,7 +203,7 @@ function s6_drawHinaWorld(ctx, T, cam, o, K) {
   }
   const zoom = cam.zoom || 1;
   s26_litActor(ctx, (c) => drawHina(c, o), {
-    lx, ly, width: 3 + 3 * zoom, rim: '#ffe2a0', rimA: K ? 0.75 : 0.35,
+    lx, ly, width: 2 + 2 * zoom, rim: '#ffe2a0', rimA: K ? 0.45 : 0.2,
     shade: '#141a44', shadeA: 0, blur: 3 * zoom, box: s26_hinaBox(cam, o),
   });
 }
@@ -270,13 +270,13 @@ function s6_shotC(ctx, T) {
   const ks = s26_toScreen(cam, 1, K.x, K.y);
   glow(ctx, Math.min(ks.x, W + 100), ks.y, 1100, '#ffc870', 0.45);
   glow(ctx, Math.min(ks.x, W + 100), ks.y, 420, '#fff3c0', 0.45);
-  const hb = {
-    ...o, x: 760 - u * 12, y: 1180, scale: 2.35, bust: true,
+  const hb = s26_bustFit({
+    ...o, bust: true,
     lookX: 0.75, lookY: -0.25, headTilt: -0.1 + 0.03 * Math.sin(T * 0.8),
-    lantern: null,
-  };
+    lantern: null, light: { x: 1900, y: 380, color: '#ffd98a', radius: 1400, strength: 1 },
+  }, 760 - u * 16, 640 - u * 10);
   s26_litActor(ctx, (c) => drawHina(c, hb), {
-    lx: 0.95, ly: -0.3, width: 9, rim: '#ffe2a0', rimA: 0.85, shade: '#141a44', shadeA: 0.1, blur: 6,
+    lx: 0.95, ly: -0.3, width: 6, rim: '#ffe2a0', rimA: 0.5, shade: '#141a44', shadeA: 0.1, blur: 6,
     box: { x: hb.x - 700, y: 0, w: 1400, h: H },
   });
   // tears glinting
@@ -309,10 +309,10 @@ function s6_shotD(ctx, T) {
     drift: { n: 40, wind: s6_wind(T), seed: 648 },
   });
   // Hina's shoulder & back of head, out of focus in the foreground, warm rim from Kira
-  const hb = {
-    ...o, x: 330, y: 1260, scale: 2.7, bust: true, view: 'back', facing: 1,
-    mouth: null, lantern: null, headTilt: -0.05,
-  };
+  const hb = s26_bustFit({
+    ...o, bust: true, view: 'back', facing: 1,
+    mouth: null, lantern: null, headTilt: -0.05, light: null,
+  }, 300, 800, H + 250);
   s26_litActor(ctx, (c) => drawHina(c, hb), {
     lx: 0.9, ly: -0.4, width: 12, rim: '#ffe2a0', rimA: 0.9, shade: '#070a20', shadeA: 0.55, blur: 8,
     box: { x: 0, y: 0, w: 1000, h: H },

@@ -162,6 +162,22 @@ function ch_star5(ctx, x, y, r, ri, rot = 0) {
   }
   ctx.closePath();
 }
+// plump star with round tips (for Kira)
+function ch_plumpStarPts(r, ri, legSpread = 0, tipR = 0.2) {
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    let a = -Math.PI / 2 + i * Math.PI / 5;
+    if (i === 4) a -= legSpread; if (i === 6) a += legSpread;
+    if (i % 2) { pts.push([Math.cos(a) * ri, Math.sin(a) * ri]); continue; }
+    const rr = r * (1 - tipR * 0.35);
+    for (const d of [-tipR, 0, tipR]) {
+      const aa = a + d * 0.55;
+      const k = d === 0 ? r : rr;
+      pts.push([Math.cos(aa) * k, Math.sin(aa) * k]);
+    }
+  }
+  return pts;
+}
 // rounded star through 10 points (plump)
 function ch_softStarPts(r, ri, rot = 0, legSpread = 0) {
   const pts = [];
@@ -283,12 +299,12 @@ function ch_hinaRig(o) {
   R.headRot = headRot;
   const neckTop = ch_add(R.neck, ch_rot([0, -14], lean * 0.6));
   R.neckTop = neckTop;
-  R.head = ch_add(neckTop, ch_rot([sym ? 0 : lerp(1, 5, turn), -44], headRot));
+  R.head = ch_add(neckTop, ch_rot([sym ? 0 : lerp(1, 5, turn), -41], headRot));
 
   // ---- arms (angles: 0 = hanging, + = forward/outward)
   const mF = 1, mB = sym ? -1 : 1;
   let aF, aB;
-  const rest = { a1: sym ? 0.13 : 0.05, a2: sym ? 0.05 : 0.2, hand: 'relax' };
+  const rest = { a1: sym ? 0.13 : -0.06, a2: sym ? 0.05 : 0.12, hand: 'relax' };
   const L = R.lantern;
   if (run) {
     aF = L ? { a1: 0.5 + 0.07 * Math.sin(ph * 2), a2: 0.62, hand: 'grip' }
@@ -296,7 +312,7 @@ function ch_hinaRig(o) {
     aB = { a1: 0.62 * Math.cos(ph) + 0.1, a2: 1.45, hand: 'fist' };
     if (sym) { aF.a1 = 0.18; aF.a2 = 0.5; aB.a1 = 0.18; aB.a2 = 0.5; }
   } else if (pose === 'wave') {
-    aF = { a1: sym ? 2.45 : 2.55, a2: 0.35 + 0.42 * Math.sin(T * 10), hand: 'open' };
+    aF = sym ? { a1: 2.45, a2: 0.35 + 0.42 * Math.sin(T * 10), hand: 'open' } : { a1: 3.45, a2: -0.25 + 0.42 * Math.sin(T * 10), hand: 'open' };
     aB = { ...rest };
   } else if (pose === 'reach') {
     aF = { a1: 1.18 + 0.28 * ar, a2: 0.04, hand: 'palm' };
@@ -305,7 +321,7 @@ function ch_hinaRig(o) {
     if (sym) { aF = { a1: -0.18, a2: -1.5, hand: 'palm' }; aB = { a1: -0.18, a2: -1.5, hand: 'palm' }; }
     else { aF = { a1: 0.32, a2: 1.42, hand: 'palm' }; aB = { a1: 0.12, a2: 1.62, hand: 'palm' }; }
   } else if (pose === 'cheer') {
-    aF = { a1: 2.45 + 0.07 * Math.sin(T * 7), a2: 0.62, hand: 'fist' };
+    aF = sym ? { a1: 2.45 + 0.07 * Math.sin(T * 7), a2: 0.62, hand: 'fist' } : { a1: 3.25 + 0.07 * Math.sin(T * 7), a2: -0.55, hand: 'fist' };
     aB = sym ? { a1: 0.3, a2: -1.9, hand: 'fist' } : { a1: 0.3, a2: 1.75, hand: 'fist' };
   } else if (kneel) {
     aF = { a1: lerp(0.5, 1.3, ar), a2: lerp(0.78, 0.05, ar), hand: ar > 0.35 ? 'palm' : 'relax' };
@@ -428,7 +444,7 @@ function drawHina(ctx, o) {
 function ch_hinaDrawFront(ctx, R, o) {
   const bustSkip = o.bust;
   // far arm (behind body)
-  ch_hinaArm(ctx, R, R.armB, true);
+  if (!R.sym) ch_hinaArm(ctx, R, R.armB, true);
   if (!bustSkip) {
     ch_hinaLeg(ctx, R, R.legB, true);
   }
@@ -438,6 +454,7 @@ function ch_hinaDrawFront(ctx, R, o) {
   if (!bustSkip) ch_hinaLeg(ctx, R, R.legF, false);
   ch_hinaNeck(ctx, R);
   ch_hinaTorso(ctx, R);
+  if (R.sym) ch_hinaArm(ctx, R, R.armB, false);
   ch_hinaHeadXf(ctx, R, () => ch_hinaFace(ctx, R, o));
   if (R.lan) ch_hinaLantern(ctx, R, 'behind');
   ch_hinaArm(ctx, R, R.armF, false);
@@ -623,8 +640,8 @@ function ch_hinaCollar(ctx, R, V, nL, nR) {
   // top panel edge: from nR (wearer's left) down to V
   const band = (a, ctrl, b, width) => {
     ctx.save();
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = CH_INK; ctx.lineWidth = width + lw * 1.6;
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = CH_INK; ctx.lineWidth = width + lw * 1.3;
     ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(ctrl[0], ctrl[1], b[0], b[1]); ctx.stroke();
     ctx.strokeStyle = CH_C.yukEdge; ctx.lineWidth = width;
     ctx.stroke();
@@ -634,8 +651,8 @@ function ch_hinaCollar(ctx, R, V, nL, nR) {
   };
   const Vb = ch_add(V, [0, 3]);
   const ctlL = ch_mix(nL, Vb, 0.5), ctlR = ch_mix(nR, Vb, 0.5);
-  band(ch_add(nL, [-1, 2]), ch_add(ctlL, [-2, 4]), ch_add(Vb, [6, -8]), 6);
-  band(ch_add(nR, [1, 2]), ch_add(ctlR, [3, 3]), ch_add(Vb, [-5, 2]), 6.5);
+  band(ch_add(nL, [-1, 1]), ch_add(ctlL, [-2, 4]), ch_add(Vb, [5, -9]), 4.6);
+  band(ch_add(nR, [1, 1]), ch_add(ctlR, [3, 3]), ch_add(Vb, [-6, 4]), 5);
 }
 function ch_hinaObi(ctx, R) {
   const { tl, fw, bw, lw, sym } = R;
@@ -776,7 +793,7 @@ function ch_hinaBow(ctx, R, backView) {
 // ---- neck
 function ch_hinaNeck(ctx, R) {
   const a = R.neck, b = ch_add(R.head, ch_rot([R.sym ? 0 : 2, 30], R.headRot));
-  const path = ch_limbPath([ch_add(a, [0, 6]), b], [9.5, 9]);
+  const path = ch_limbPath([ch_add(a, [0, 6]), b], [11.5, 10.5]);
   ch_part(ctx, path, {
     fill: CH_C.skin, lw: R.lw, lights: R.lights,
     after: (c) => {
@@ -800,7 +817,7 @@ function ch_hinaArm(ctx, R, A, far) {
   const cuffK = lerp(0.42, 0.02, up);
   const C = ch_add(A.E, ch_sub(A.W, A.E), cuffK);
   // exposed forearm + hand (drawn before sleeve)
-  const fore = ch_limbPath([ch_mix(A.E, A.W, Math.max(0, cuffK - 0.1)), A.W], [6.4, 5.4]);
+  const fore = ch_limbPath([ch_mix(A.E, A.W, Math.max(0, cuffK - 0.1)), A.W], [7.2, 6]);
   ch_part(ctx, fore, { fill: skin, shade: CH_C.skinSh, sh: [2, -2], lw, lights: R.lights });
   if (!(A.hand === 'grip' && R.lan)) ch_hinaHand(ctx, R, A, skin);
   // sleeve
@@ -1046,7 +1063,7 @@ function ch_hinaHairBack(ctx, R) {
   const path = (c) => ch_spline(c, pts, true);
   ch_part(ctx, path, {
     fill: CH_C.hair, shade: CH_C.hairSh, sh: [7, -6], lw, lights, lightK: 0.6,
-    rim: R.rim, rimA: R.rimA, rm: [3.5, 3],
+    rim: R.rim, rimA: R.rimA * 0.45, rm: [2.2, 2.2],
     inner: (c) => {
       const sx = R.back ? 0 : -Math.sin(turn * 1.3) * 10;
       ch_hinaHairRing(c, R, sx, R.back ? -26 : -32);
@@ -1109,8 +1126,8 @@ function ch_hinaClip(ctx, x, y, s, lw) {
 
 // ---- head: face + front hair
 const CH_FACE_F = [[0, -50], [35, -36], [50, -4], [49, 10], [47, 24], [42, 36], [31, 47], [14, 56], [0, 58], [-14, 56], [-31, 47], [-42, 36], [-47, 24], [-49, 10], [-50, -4], [-35, -36]];
-const CH_FACE_T = [[-2, -51], [37, -36], [49, -6], [47, 9], [49, 22], [45, 34], [36, 46], [23, 55], [13, 58], [-3, 55], [-22, 47], [-36, 35], [-45, 22], [-50, 8], [-51, -6], [-37, -37]];
-const CH_FACE_S = [[-4, -52], [38, -36], [50, -8], [48, 9], [57, 24], [50, 31], [51, 39], [47, 50], [38, 57], [20, 52], [0, 44], [-10, 34], [-30, 20], [-48, 8], [-54, -10], [-40, -38]];
+const CH_FACE_T = [[-2, -51], [37, -36], [49, -6], [47, 9], [49, 22], [45, 34], [36, 46], [23, 55], [13, 58], [-3, 55], [-22, 47], [-34, 35], [-40, 22], [-42, 6], [-42, -8], [-30, -40]];
+const CH_FACE_S = [[4, -52], [38, -36], [50, -8], [48, 9], [57, 24], [50, 31], [51, 39], [47, 50], [38, 57], [20, 52], [4, 44], [-6, 34], [-12, 20], [-14, 6], [-14, -14], [-8, -40]];
 
 function ch_hinaFace(ctx, R, o) {
   const E = R.E, turn = R.turn, T = R.T;
@@ -1132,7 +1149,7 @@ function ch_hinaFace(ctx, R, o) {
       if (turn > 0.1) {
         const bx = lerp(-60, -50, turn);
         c.moveTo(bx, -10); c.quadraticCurveTo(-26 + 20 * turn, 10, -24 + 30 * turn, 44); c.lineTo(-80, 60); c.lineTo(-80, -10); c.closePath();
-        c.globalAlpha = 0.45 * clamp(turn * 2);
+        c.globalAlpha = 0.18 * clamp(turn * 2);
         c.fill(); c.globalAlpha = 1;
       }
       // hair shadow across the forehead (under bangs)
@@ -1214,13 +1231,16 @@ function ch_hinaFace(ctx, R, o) {
     const L = 11 * wf;
     ctx.save();
     ctx.translate(bx, by); ctx.rotate(ang);
-    ctx.globalAlpha *= 0.85;
-    ctx.fillStyle = '#2a1418';
-    ctx.beginPath();
-    ctx.moveTo(-L * sd * 1, 1);
-    ctx.quadraticCurveTo(0, -3.4, L * sd, 0.4);
-    ctx.quadraticCurveTo(0, -0.8, -L * sd, 2.6);
-    ctx.closePath(); ctx.fill();
+    const brow = (c) => { c.moveTo(-L * sd * 1, 1); c.quadraticCurveTo(0, -3.4, L * sd, 0.4); c.quadraticCurveTo(0, -0.8, -L * sd, 2.6); c.closePath(); };
+    // 'see-through bangs' brow: soft skin halo then the brow
+    ctx.globalAlpha *= 0.55;
+    ctx.strokeStyle = CH_C.skin; ctx.lineWidth = 3.2; ctx.lineJoin = 'round';
+    ctx.beginPath(); brow(ctx); ctx.stroke();
+    ctx.fillStyle = CH_C.skin; ctx.fill();
+    ctx.globalAlpha /= 0.55;
+    ctx.globalAlpha *= 0.95;
+    ctx.fillStyle = '#3a1c20';
+    ctx.beginPath(); brow(ctx); ctx.fill();
     ctx.restore();
   }
   // --- clip
@@ -1364,11 +1384,11 @@ function ch_hinaEye(ctx, cx, cy, w, h, P) {
   ctx.restore();
 }
 
-const CH_MOUTH = { a: [13, 12, 0.35], i: [15, 4.5, 0.7], u: [6.5, 6, 0], e: [13, 8, 0.45], o: [9, 11, 0], n: [9, 2.2, 0], c: [10.5, 5, 0.35] };
+const CH_MOUTH = { a: [16, 15, 0.3], i: [18, 5.5, 0.7], u: [8, 8, 0], e: [16, 10, 0.4], o: [11, 14, 0], n: [11, 2.6, 0], c: [13, 6.5, 0.35] };
 function ch_hinaMouth(ctx, x, y, wf, mouth, E, det, lw, T, turn) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(wf, 1);
+  ctx.scale(wf * 1.1, 1.1);
   let shape = mouth;
   const sm = E.smile || 0;
   let spec = null, closed = null;
@@ -1459,6 +1479,8 @@ function ch_hinaHairFront(ctx, R, phi, lw, lights) {
   const pts = seq.map(([th, y, ty], i) => {
     let x = X(th);
     let yy = y;
+    // a side lock turned away from camera collapses into the face edge: hide it
+    if (Math.abs(th) > 1.1 && ty === 't' && Math.cos(th + phi) < 0.3) yy = lerp(14, y, clamp(Math.cos(th + phi) / 0.3));
     if (ty === 't') {
       const amt = y > 30 ? 1 : 0.35;
       const w = ch_hinaHairWind(R, i, amt);
@@ -1478,6 +1500,18 @@ function ch_hinaHairFront(ctx, R, phi, lw, lights) {
       c.quadraticCurveTo(cx, cy, b[0], b[1]);
     }
   };
+  // outline only the strands that sit over skin (not the outer edge of side locks, which lies over the back hair)
+  const lowerPart = (c) => {
+    const a0 = 2, a1 = pts.length - 3;
+    c.moveTo(pts[a0][0], pts[a0][1]);
+    for (let i = a0 + 1; i <= a1; i++) {
+      const a = pts[i - 1], b = pts[i];
+      let cx, cy;
+      if (b[2] === 't') { cx = a[0] + (b[0] - a[0]) * 0.2; cy = a[1] + (b[1] - a[1]) * 0.8; }
+      else { cx = a[0] + (b[0] - a[0]) * 0.8; cy = a[1] + (b[1] - a[1]) * 0.2; }
+      c.quadraticCurveTo(cx, cy, b[0], b[1]);
+    }
+  };
   const sx = -Math.sin(phi) * 10;
   const topPts = [[pts[pts.length - 1][0], pts[pts.length - 1][1]], [X(1.2) * 0.95 + sx * 0.2, -52], [sx * 0.2 + X(0) * 0.4, -72], [X(-1.2) * 0.95 + sx * 0.5, -54], [pts[0][0], pts[0][1]]];
   const path = (c) => {
@@ -1486,16 +1520,15 @@ function ch_hinaHairFront(ctx, R, phi, lw, lights) {
     c.closePath();
   };
   ch_part(ctx, path, {
-    fill: CH_C.hair, shade: CH_C.hairSh, sh: [6, -5], lw, stroke: (c) => lower(c, true), lights, lightK: 0.5,
-    rim: R.rim, rimA: R.rimA * 0.7, rm: [3, 3],
+    fill: CH_C.hair, shade: CH_C.hairSh, sh: [6, -5], lw, stroke: (c) => lowerPart(c), lights, lightK: 0.5,
     inner: (c) => {
       ch_hinaHairRing(c, R, sx, -32);
       // strand lines in the bangs
-      c.strokeStyle = 'rgba(8,4,6,0.6)'; c.lineWidth = 1.1; c.lineCap = 'round';
+      c.strokeStyle = 'rgba(8,4,6,0.45)'; c.lineWidth = 0.9; c.lineCap = 'round';
       for (let i = 4; i < pts.length - 4; i++) {
         if (pts[i][2] !== 'v') continue;
         const p = pts[i];
-        c.beginPath(); c.moveTo(p[0], p[1] - 1); c.quadraticCurveTo(p[0] + (p[0] - sx) * 0.05, p[1] - 14, p[0] * 0.8 + sx * 0.2, p[1] - 30); c.stroke();
+        c.beginPath(); c.moveTo(p[0], p[1] - 1); c.quadraticCurveTo(p[0] + (p[0] - sx) * 0.04, p[1] - 8, p[0] * 0.9 + sx * 0.1, p[1] - 16); c.stroke();
       }
       if (R.detail) {
         c.strokeStyle = rgba(CH_C.hairHi2, 0.5); c.lineWidth = 0.9;
@@ -1557,7 +1590,7 @@ function drawKira(ctx, o) {
     const nr = 12;
     for (let i = 0; i < nr; i++) {
       const a = T * 0.25 + i * TAU / nr + 0.3 * Math.sin(i * 7.3);
-      const len = r * (2.2 + 1.8 * k) * (0.6 + 0.4 * Math.sin(T * 1.7 + i * 2.1)) * (i % 2 ? 0.7 : 1);
+      const len = r * (1.5 + 1.1 * k) * (0.6 + 0.4 * Math.sin(T * 1.7 + i * 2.1)) * (i % 2 ? 0.65 : 1);
       const wdt = r * 0.16 * (i % 2 ? 0.7 : 1);
       ctx.save();
       ctx.rotate(a);
@@ -1587,8 +1620,8 @@ function drawKira(ctx, o) {
   const armMode = o.arms && o.arms !== 'auto' ? o.arms : X.arms;
   const lwk = Math.max(1, r * 0.05);
   // --- body
-  const pts = ch_softStarPts(r, r * 0.64, 0, 0.1);
-  const body = (c) => ch_spline(c, pts, true, true, 0.82);
+  const pts = ch_plumpStarPts(r, r * 0.66, 0.08, 0.28);
+  const body = (c) => ch_spline(c, pts, true, true, 1);
   const gbody = ctx.createRadialGradient(-r * 0.22, -r * 0.3, r * 0.05, 0, 0, r * 1.05);
   const hot = clamp(g * 0.6);
   gbody.addColorStop(0, '#fffdf2');
@@ -1691,8 +1724,12 @@ function ch_kiraEye(ctx, x, y, r, sd, X, blink, lx, ly, T, small) {
   // brows (tiny)
   if (X.brow) {
     ctx.strokeStyle = 'rgba(140,70,20,0.8)'; ctx.lineWidth = Math.max(1, r * 0.03);
-    const by = -eh * 0.8;
-    ctx.beginPath(); ctx.moveTo(-sd * ew * 0.35, by + X.brow * sd * 0 - X.brow * eh * 0.1 * 1); ctx.lineTo(sd * ew * 0.35, by + X.brow * eh * 0.1); ctx.stroke();
+    const by = -eh * 0.78;
+    // X.brow < 0 : worried (inner end up); > 0 : raised
+    const inner = -sd * ew * 0.32, outer = sd * ew * 0.34;
+    const yi = by + (X.brow < 0 ? X.brow * eh * 0.16 : -X.brow * eh * 0.2), yo = by + (X.brow < 0 ? -X.brow * eh * 0.05 : -X.brow * eh * 0.1);
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(inner, yi); ctx.quadraticCurveTo(0, Math.min(yi, yo) - eh * 0.1, outer, yo); ctx.stroke();
   }
   ctx.restore();
 }
@@ -1711,12 +1748,12 @@ function ch_kiraMouth(ctx, x, y, r, mouth, X, T, small) {
     ctx.closePath();
     ctx.fillStyle = '#7a2230'; ctx.fill();
     ctx.save(); ctx.clip();
-    ctx.fillStyle = '#ff8a8e'; ctx.beginPath(); ch_ell(ctx, 0, h * 0.75, w * 0.3, h * 0.35); ctx.fill();
+    ctx.fillStyle = '#ff8a8e'; ctx.beginPath(); ch_ell(ctx, 0, h * 0.98, w * 0.38, h * 0.42); ctx.fill();
     ctx.restore();
     ctx.strokeStyle = ink; ctx.lineWidth = 1.6; ctx.stroke();
   };
   if (mouth && mouth !== 'x') {
-    const m = { a: [9, 9], i: [10, 3.5], u: [5, 5], e: [9, 6], o: [6.5, 8], n: [6, 1.8], c: [7, 4] }[mouth] || [7, 5];
+    const m = { a: [10, 10], i: [11, 4], u: [5.5, 5.5], e: [10, 7], o: [7, 9], n: [7, 2], c: [8, 4.5] }[mouth] || [7, 5];
     if (X.mouth === 'wobble') {
       const wob = Math.sin(T * 14) * 0.8;
       ctx.beginPath();
@@ -1774,31 +1811,25 @@ function ch_kiraTears(ctx, r, fy, k, T) {
   }
 }
 function ch_kiraArms(ctx, r, mode, T, lw, layer) {
-  const arm = (x, y, ang, len) => (c) => {
-    c.save && 0;
-    const dx = Math.cos(ang), dy = Math.sin(ang);
-    const px = x + dx * len, py = y + dy * len;
-    const nx = -dy * r * 0.1, ny = dx * r * 0.1;
-    c.moveTo(x + nx, y + ny);
-    c.quadraticCurveTo(px + nx * 1.2, py + ny * 1.2, px + dx * r * 0.08, py + dy * r * 0.08);
-    c.quadraticCurveTo(px - nx * 1.2, py - ny * 1.2, x - nx, y - ny);
-    c.closePath();
-  };
-  const st = { fill: '#ffe89a', shade: '#f2b04a', sh: [0, -r * 0.03], lw, ink: '#8a4a14' };
+  const st = { fill: '#ffe48c', shade: '#f0a843', sh: [0, -r * 0.035], shadeA: 0.7, lw, ink: '#8a4a14' };
   const wv = Math.sin(T * 9);
-  let defs;
+  // [baseX, baseY, angle(rad, 0=+x, screen y down), length] in units of r
+  let defs, paws = null;
   switch (mode) {
-    case 'up': defs = [[-0.55, 0.05, -2.3 + wv * 0.15, 0.3], [0.55, 0.05, -0.84 - wv * 0.15, 0.3]]; break;
-    case 'eyes': defs = [[-0.45, 0.3, -0.6 + wv * 0.1, 0.24], [0.45, 0.3, Math.PI + 0.6 - wv * 0.1, 0.24]]; break;
-    case 'clasp': defs = [[-0.4, 0.35, 0.35, 0.28], [0.4, 0.35, Math.PI - 0.35, 0.28]]; break;
-    case 'wave': defs = [[-0.55, 0.15, 2.4, 0.26], [0.55, 0.05, -0.9 + wv * 0.4, 0.32]]; break;
-    case 'reach': defs = [[-0.55, 0.15, 2.4, 0.26], [0.55, 0.1, -0.2, 0.34]]; break;
-    default: defs = [[-0.55, 0.2, 2.35 + wv * 0.03, 0.24], [0.55, 0.2, 0.79 - wv * 0.03, 0.24]];
+    case 'up': defs = [[-0.5, 0.12, -2.35 + wv * 0.15, 0.3], [0.5, 0.12, -0.8 - wv * 0.15, 0.3]]; break;
+    case 'wave': defs = [[-0.5, 0.2, 2.5, 0.22], [0.5, 0.1, -0.8 + wv * 0.45, 0.32]]; break;
+    case 'reach': defs = [[-0.5, 0.2, 2.5, 0.22], [0.5, 0.14, -0.25, 0.34]]; break;
+    case 'eyes': defs = []; paws = [[-0.36, 0.28 + wv * 0.01], [0.36, 0.28 - wv * 0.01]]; break;   // rubbing tears
+    case 'clasp': defs = []; paws = [[-0.08, 0.5], [0.08, 0.5]]; break;
+    default: defs = [[-0.52, 0.24, 2.45 + wv * 0.03, 0.22], [0.52, 0.24, 0.69 - wv * 0.03, 0.22]];
   }
-  for (const [x, y, a, l] of defs) {
-    const inFront = mode === 'eyes' || mode === 'clasp';
-    if ((layer === 'front') !== inFront) continue;
-    ch_part(ctx, arm(x * r, y * r, a, l * r), st);
+  if (layer === 'back') {
+    for (const [x, y, a, l] of defs) {
+      const b = [x * r, y * r], e = [b[0] + Math.cos(a) * l * r, b[1] + Math.sin(a) * l * r];
+      ch_part(ctx, ch_limbPath([b, e], [r * 0.12, r * 0.1]), st);
+    }
+  } else if (paws) {
+    for (const [x, y] of paws) ch_part(ctx, (c) => ch_ell(c, x * r, y * r, r * 0.11, r * 0.095), st);
   }
 }
 

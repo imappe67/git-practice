@@ -66,24 +66,28 @@ function renderFrame(T) {
       ctx.restore();
     }
   }
+  post(ctx, T);
   if (tr.type === 'fadeFromBlack' && into < tr.dur) {
     ctx.fillStyle = `rgba(0,0,0,${1 - smooth(into / tr.dur)})`; ctx.fillRect(0, 0, W, H);
   }
   if (tr.type === 'fromWhite' && into < tr.dur) {
     ctx.fillStyle = `rgba(255,252,240,${1 - Ease.outQuad(into / tr.dur)})`; ctx.fillRect(0, 0, W, H);
   }
-
-  post(ctx, T);
+  endFade(ctx, T);
   subtitles(ctx, T);
 }
 
 function post(ctx, T) {
-  // vignette
+  // vignette (suppressed while the impact whiteout fills the frame)
+  const white = invLerp(13.1, 13.4, T) * (T < 13.5 ? 1 : 0);
+  ctx.save();
+  ctx.globalAlpha = 1 - white;
   const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
   g.addColorStop(0, 'rgba(0,0,10,0)');
   g.addColorStop(1, 'rgba(0,0,12,0.55)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+  ctx.restore();
   // film grain: tiled deterministic noise, changes every frame
   const grain = buffer('grain');
   if (!grain._made) {
@@ -107,6 +111,9 @@ function post(ctx, T) {
   ctx.fillStyle = pat;
   ctx.fillRect(-256, -256, W + 512, H + 512);
   ctx.restore();
+}
+
+function endFade(ctx, T) {
   // global fade out at the very end
   const end = TIMELINE.duration;
   if (T > end - 1.0) { ctx.fillStyle = `rgba(0,0,0,${smooth((T - (end - 1.0)) / 1.0)})`; ctx.fillRect(0, 0, W, H); }

@@ -502,6 +502,56 @@ function s34_headPos(o) {
   return { x: o.x, y: o.y - (o.pose === 'kneel' || o.pose === 'reach' ? 250 : 330) * s };
 }
 
+// A paper lantern (chōchin) hanging from a planted bamboo stick, matching Hina's rig lantern.
+// (bx,by) = where the stick enters the ground; s = scale (Hina's scale).
+function s34_plantedLantern(ctx, T, bx, by, s, g) {
+  const tip = { x: bx + 70 * s, y: by - 150 * s };
+  const sw = 0.06 * Math.sin(T * 1.3) + 0.03 * noise1(T * 0.9, 8);
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#1a1433'; ctx.lineWidth = 5.5 * s;
+  ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+  ctx.strokeStyle = '#b98d56'; ctx.lineWidth = 3.4 * s; ctx.stroke();
+  ctx.translate(tip.x, tip.y);
+  ctx.rotate(sw);
+  ctx.strokeStyle = '#1a1433'; ctx.lineWidth = 1.6 * s;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 10 * s); ctx.stroke();
+  ctx.translate(0, 31 * s);
+  ctx.scale(s, s);
+  if (g > 0) { glow(ctx, 0, 0, 110 + 140 * g, '#ffb347', 0.22 + 0.25 * g); glow(ctx, 0, 0, 50 + 40 * g, '#ffe2a8', 0.25 * g); }
+  const rx = 24, ry = 21;
+  ctx.beginPath();
+  ctx.moveTo(-rx * 0.62, -ry + 1);
+  ctx.bezierCurveTo(-rx * 1.12, -ry * 0.6, -rx * 1.12, ry * 0.6, -rx * 0.62, ry - 1);
+  ctx.lineTo(rx * 0.62, ry - 1);
+  ctx.bezierCurveTo(rx * 1.12, ry * 0.6, rx * 1.12, -ry * 0.6, rx * 0.62, -ry + 1);
+  ctx.closePath();
+  ctx.save();
+  ctx.clip();
+  const gr = ctx.createRadialGradient(-3, 2, 2, 0, 0, rx * 1.3);
+  gr.addColorStop(0, mixColor('#efe4cf', '#fff8e0', g)); gr.addColorStop(0.55, mixColor('#e5d3b4', '#ffc768', g)); gr.addColorStop(1, '#c86a2a');
+  ctx.fillStyle = gr; ctx.fillRect(-rx * 1.5, -ry * 1.5, rx * 3, ry * 3);
+  ctx.fillStyle = mixColor('#c9343a', '#ff6a40', g * 0.6);
+  ctx.fillRect(-rx * 1.5, -ry, rx * 3, ry * 0.36); ctx.fillRect(-rx * 1.5, ry * 0.64, rx * 3, ry * 0.36);
+  ctx.beginPath(); ctx.ellipse(0, 0, rx * 0.36, ry * 0.3, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(176,96,42,0.45)'; ctx.lineWidth = 0.9;
+  for (let i = -3; i <= 3; i++) {
+    const y = i * ry * 0.27, w = rx * Math.sqrt(Math.max(0, 1 - (y / (ry * 1.08)) ** 2)) * 1.02;
+    ctx.beginPath(); ctx.moveTo(-w, y); ctx.quadraticCurveTo(0, y + 3, w, y); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.strokeStyle = '#1a1433'; ctx.lineWidth = 2.4; ctx.stroke();
+  ctx.fillStyle = '#2e211c';
+  ctx.fillRect(-rx * 0.62, -ry - 4, rx * 1.24, 6); ctx.fillRect(-rx * 0.62, ry - 2, rx * 1.24, 6);
+  ctx.strokeStyle = '#d33a3a'; ctx.lineWidth = 2;
+  const tw = Math.sin(T * 2.4) * 2;
+  ctx.beginPath(); ctx.moveTo(0, ry + 4); ctx.quadraticCurveTo(tw * 0.5, ry + 10, tw, ry + 16); ctx.stroke();
+  if (g > 0) glow(ctx, 0, 0, 34 + 20 * g, '#fff2c8', 0.28 * g);
+  ctx.restore();
+  // world position of the lantern body centre (for lighting)
+  return { x: tip.x - Math.sin(sw) * 31 * s, y: tip.y + Math.cos(sw) * 31 * s };
+}
+
 // =================================================================== s3 ====
 const s3_HZ = 0.97;                      // Hina's depth
 const s3_HX_END = 790;                   // where she kneels (world x)
@@ -555,8 +605,8 @@ function s3_hina(T) {
 // Kira's state in s3
 const s3_HOP = { hes: 22.5, crouch: 22.92, air: 23.05, land: 23.35 };
 function s3_kira(T, hina) {
-  const base = { x: s3_CR.x, y: s3_CR.y - 26 };
-  const o = { x: base.x, y: base.y, size: 40, T, mouth: mouthAt('kira', T), expression: 'cry', tears: 1,
+  const base = { x: s3_CR.x, y: s3_CR.y - 22 };
+  const o = { x: base.x, y: base.y, size: 34, T, mouth: mouthAt('kira', T), expression: 'cry', tears: 1,
     blink: blinkAt(T, 33), lookX: 0, lookY: 0.3, rot: 0, squash: 0 };
   // weak, flickering glow
   o.glow = 0.4 + 0.08 * noise1(T * 5, 2) + 0.05 * noise1(T * 17, 3) - 0.1 * clamp(noise1(T * 1.3, 8) * 3 - 2);
@@ -653,8 +703,8 @@ function s3_drawWater(ctx, cam, T, hina, kira, heat) {
     s34_world(g, cam);
     g.save();
     g.translate(0, 2 * hina.y); g.scale(1, -1);
-    g.globalAlpha = 0.42;
-    drawHina(g, hina);
+    g.globalAlpha = 0.3;
+    drawHina(g, { ...hina, light: null });
     g.restore();
     g.globalAlpha = 1;
   }
@@ -689,8 +739,11 @@ registerScene('s3', {
     const cam = s3_camera(T);
     const hina = T >= s3_RUN[0] ? s3_hina(T) : null;
     const kira = s3_kira(T, hina);
-    if (hina) hina.light = [{ x: kira.x, y: kira.y, color: '#ffd76a', radius: 420, strength: 0.35 + 0.5 * kira.glow },
-      { x: s3_CR.x, y: s3_CR.y, color: '#ff9a3c', radius: 380, strength: 0.4 }];
+    if (hina) {
+      hina.light = [{ x: kira.x, y: kira.y, color: '#ffd76a', radius: 420, strength: 0.35 + 0.5 * kira.glow },
+        { x: s3_CR.x, y: s3_CR.y, color: '#ff9a3c', radius: 380, strength: 0.4 }];
+      if (T >= s3_PLANT) hina.light.push({ x: s3_HX_END - 120 + 63, y: s34_zy(s3_HZ) - 110, color: '#ffb347', radius: 300, strength: 0.5 });
+    }
     const heat = 0.75 + 0.15 * noise1(T * 3, 5) - 0.25 * prog(T, 14, 24);
     const sy = s34_horizon(cam);
 
@@ -746,6 +799,8 @@ registerScene('s3', {
     s34_craterFront(ctx, T, s3_CR.x, s3_CR.y, heat);
     s34_embers(ctx, T, s3_CR.x, s3_CR.y - 5, { amt: heat });
 
+    // her lantern, planted in the mud beside her (after the cut to the close shot)
+    if (T >= s3_PLANT) s34_plantedLantern(ctx, T, s3_HX_END - 120, s34_zy(s3_HZ) - 2, 0.9, s3_LANTERN_GLOW);
     // Hina
     if (hina && hina.x > -250) drawHina(ctx, hina);
     if (!kiraInCrater) {
