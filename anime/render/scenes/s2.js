@@ -1153,10 +1153,10 @@ function s2_closeupFrame() {
   c1.lineTo(W + 50, 1100); c1.closePath(); c1.fill();
   const [leaves, c2] = mk();
   const { clusters } = s26_treeData();
-  c2.translate(-760, -330);
-  c2.scale(1.7, 1.7);
+  c2.translate(-120, 40);
+  c2.scale(1.3, 1.3);
   for (const C of clusters) {
-    if (C.x > 700 || C.y > 230) continue;
+    if (C.x > 520 || C.y > 120) continue;
     c2.fillStyle = rgba('#3f6f84', 0.8);
     s26_clusterPath(c2, C, 6, -8, 1); c2.fill();
     c2.fillStyle = '#081820';

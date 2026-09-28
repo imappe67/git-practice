@@ -873,7 +873,7 @@ def fx_blaze_flood(mix):
     pk = (f["peak"] - f["t0"]) / d
     env = np.where(x < pk, (x / pk) ** 2.5, np.exp(-(x - pk) * d / 0.35))
     mix.add(whoosh(n, 3000 * 2 ** (1.2 * np.minimum(x / pk, 1)), fade(env, 0.01, 0.2), 0.0, 1.0, rg, 1.1),
-            f["t0"], gain=0.07, rl=0.5)
+            f["t0"], gain=0.12, rl=0.5)
 
 
 def fx_passby(mix):
@@ -907,8 +907,8 @@ def fx_hill_wind(mix):
     pk = (c["peak"] - c["t"] + 0.6) / d
     amp = hump(n, pk, 1.6)
     fc = 280 * 2 ** (1.6 * amp)
-    mix.add(whoosh(n, fc, amp, 0.2 * np.sin(TAU * 0.3 * ts(n)), 0.8, rg, 1.0), c["t"] - 0.6, gain=0.11, rs=0.1)
-    gr = bp(rg.standard_normal((2, n)), 2500, 9500) * (np.abs(smooth_rand(n, 25, rg)) ** 2 + 0.2) * amp ** 2
+    mix.add(whoosh(n, fc, amp, 0.2 * np.sin(TAU * 0.3 * ts(n)), 0.8, rg, 1.0), c["t"] - 0.6, gain=0.085, rs=0.1)
+    gr = bp(rg.standard_normal((2, n)), 2500, 9500) * (np.tanh(np.abs(smooth_rand(n, 25, rg)) ** 2 / 1.5) + 0.2) * amp ** 2
     mix.add(gr, c["t"] - 0.6, gain=0.06)
 
 

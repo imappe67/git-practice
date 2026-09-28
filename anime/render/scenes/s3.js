@@ -267,7 +267,7 @@ function s34_rows(ctx, cam, T, zNear, zFar, opt = {}) {
       ctx.stroke(tips);
     }
     // a faint sheen line on the water in front of the row
-    ctx.fillStyle = rgba('#9fb8ff', 0.05 * (1 - haze));
+    ctx.fillStyle = rgba('#9fb8ff', 0.025 * (1 - haze));
     ctx.fillRect(x0, by + 2, x1 - x0, Math.max(1, 0.006 * s));
   }
 }
@@ -353,7 +353,7 @@ function s34_craterBack(ctx, T, cx, cy, heat) {
   ctx.fillStyle = '#15110f';
   ctx.beginPath();
   for (let i = 0; i <= 40; i++) {
-    const a = (i / 40) * TAU, rr = 1 + 0.12 * noise1(i * 0.9, 7);
+    const a = (i / 40) * TAU, rr = 1 + 0.1 * noise1((i % 40) * 0.45, 7);
     ctx.lineTo(cx + Math.cos(a) * 135 * rr, cy + Math.sin(a) * 30 * rr);
   }
   ctx.fill();
@@ -370,6 +370,7 @@ function s34_craterBack(ctx, T, cx, cy, heat) {
   ctx.strokeStyle = rgba('#ff9a3c', 0.5 * heat);
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.ellipse(cx, cy - 6, 99, 17, 0, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+  s34_scorched(ctx, T, cx, cy, heat, true);
 }
 function s34_craterFront(ctx, T, cx, cy, heat) {
   ctx.fillStyle = '#2d201a';
@@ -389,27 +390,49 @@ function s34_craterFront(ctx, T, cx, cy, heat) {
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (r() - 0.5) * 16, y + 3 + r() * 6); ctx.stroke();
   }
   ctx.restore();
-  // scorched stalks leaning away from the impact
+  s34_scorched(ctx, T, cx, cy, heat, false);
+}
+// burnt, broken rice stalks around the rim, bent away from the impact; clods of mud
+function s34_scorched(ctx, T, cx, cy, heat, back) {
   const q = rng(405);
   ctx.lineCap = 'round';
-  for (let i = 0; i < 16; i++) {
-    const side = i % 2 ? 1 : -1;
-    const a = (0.1 + q() * 0.9) * Math.PI * (q() < 0.5 ? 1 : -1);
-    const bx = cx + Math.cos(a) * (110 + q() * 30), by = cy + Math.sin(a) * 26 + 2;
-    const lean = Math.sign(bx - cx) * (0.6 + q() * 0.7);
-    const h = 26 + q() * 26;
-    const sw = 0.05 * Math.sin(T * 1.7 + i);
-    const tx = bx + Math.sin(lean + sw) * h, ty = by - Math.cos(lean + sw) * h;
-    ctx.strokeStyle = q() < 0.5 ? '#1d140f' : '#2f2217';
+  for (let i = 0; i < 11; i++) {
+    const a = (i / 11) * TAU + q() * 0.4, rr = 112 + q() * 26, h = 30 + q() * 18, c = q();
+    if ((Math.sin(a) < 0) !== back) { q(); q(); continue; }
+    const dx = Math.cos(a), bx = cx + dx * rr, by = cy + Math.sin(a) * rr * 0.24 + 3;
+    const out = Math.abs(dx) < 0.25 ? (q() < 0.5 ? -1 : 1) : Math.sign(dx);
+    const gl = q();
+    ctx.strokeStyle = c < 0.5 ? '#1b130e' : '#2a1d14';
     ctx.lineWidth = 2.2;
-    ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx + (tx - bx) * 0.2, by - h * 0.6, tx, ty); ctx.stroke();
-    if (q() < 0.45) {
-      const fl = heat * (0.5 + 0.5 * Math.sin(T * 6 + i * 2.3));
-      ctx.fillStyle = rgba('#ff9a3c', fl);
-      ctx.beginPath(); ctx.arc(tx, ty, 1.8, 0, TAU); ctx.fill();
-      glow(ctx, tx, ty, 8, '#ff9a3c', 0.4 * fl);
+    ctx.beginPath();
+    const tips = [];
+    for (let j = 0; j < 5; j++) {
+      const u = j / 4 - 0.5;
+      const lean = out * (0.5 + 0.9 * (j / 4)) + u * 0.3 + 0.04 * Math.sin(T * 1.5 + i + j);
+      const hh = h * (0.7 + 0.3 * hash(i * 9 + j));
+      // drooping (broken) blades: rise, then fall outward
+      const mx = bx + u * 6 + Math.sin(lean) * hh * 0.45, my = by - hh * 0.75;
+      const tx = mx + Math.sin(lean) * hh * 0.55, ty = my + hh * 0.2 * (j / 4);
+      ctx.moveTo(bx + u * 6, by); ctx.quadraticCurveTo(bx + u * 6, my, mx, my); ctx.lineTo(tx, ty);
+      tips.push([tx, ty]);
     }
-    void side;
+    ctx.stroke();
+    if (gl < 0.55) {
+      const [tx, ty] = tips[(i * 3) % 5];
+      const fl = heat * (0.5 + 0.5 * Math.sin(T * 6 + i * 2.3));
+      ctx.fillStyle = rgba('#ffb04a', fl);
+      ctx.beginPath(); ctx.arc(tx, ty, 1.7, 0, TAU); ctx.fill();
+      glow(ctx, tx, ty, 9, '#ff9a3c', 0.45 * fl);
+    }
+  }
+  // clods (behind only)
+  if (!back) return;
+  const r = rng(406);
+  for (let i = 0; i < 10; i++) {
+    const a = back ? Math.PI + r() * Math.PI : r() * Math.PI, rr = 96 + r() * 40;
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * 0.26 + 1;
+    ctx.fillStyle = r() < 0.5 ? '#231913' : '#2e2119';
+    ctx.beginPath(); ctx.ellipse(x, y, 6 + r() * 8, 2 + r() * 2, 0, 0, TAU); ctx.fill();
   }
 }
 
@@ -696,9 +719,25 @@ registerScene('s3', {
     // crater + Kira (in crater)
     s34_craterBack(ctx, T, s3_CR.x, s3_CR.y, heat);
     s34_smoke(ctx, T, s3_CR.x, s3_CR.y - 10, { amt: 1 - 0.4 * prog(T, 14, 24) });
-    glow(ctx, s3_CR.x, s3_CR.y - 10, 300, '#ff9a3c', 0.22 * heat);
+    glow(ctx, s3_CR.x, s3_CR.y - 20, 300, '#ff9a3c', 0.12 * heat);
     const kiraInCrater = T < s3_HOP.air;
-    if (kiraInCrater) drawKira(ctx, kira);
+    if (kiraInCrater) {
+      drawKira(ctx, kira);
+      // glowing tear drops falling from Kira's eyes into the puddle
+      for (let i = 0; i < 12; i++) {
+        const tt = 14.4 + i * 0.47 + hash(i) * 0.2;
+        if (tt > 21) break;
+        const k = invLerp(tt - 0.32, tt, T);
+        if (k <= 0 || k >= 1) continue;
+        const side = i % 2 ? 1 : -1;
+        const ex = kira.x + side * kira.size * 0.34, ey = kira.y + kira.size * 0.1;
+        const tx = s3_CR.x + (hash(i + 5) - 0.5) * 60, ty = s3_CR.y + 8;
+        const x = lerp(ex, tx, k) + side * 12 * Math.sin(k * Math.PI), y = lerp(ey, ty, k * k);
+        glow(ctx, x, y, 12, '#bfe8ff', 0.6);
+        ctx.fillStyle = 'rgba(230,248,255,0.95)';
+        ctx.beginPath(); ctx.ellipse(x, y, 2.2, 3.2, 0, 0, TAU); ctx.fill();
+      }
+    }
     s34_craterFront(ctx, T, s3_CR.x, s3_CR.y, heat);
     s34_embers(ctx, T, s3_CR.x, s3_CR.y - 5, { amt: heat });
 
