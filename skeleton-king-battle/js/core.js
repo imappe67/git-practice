@@ -109,12 +109,16 @@ const PAL = {
   skyTop: '#2c313a', skyMid: '#535a65', skyLow: '#8e98a3',
   iceFar: '#c9d6df', iceNear: '#7f95a6', iceDeep: '#16263a', crack: '#1b2c42',
   iceHi: '#eef6fb',
-  bone: '#ddd7c8', boneSh: '#8c8f9b', boneHi: '#f7f3e8',
-  gold: '#d8a83c', goldSh: '#8a5a1e', goldHi: '#ffe48e', goldLine: '#5b3510',
-  cape: '#6a1418', capeSh: '#3b0a10',
+  // withered grey sinew-and-bone body (ref: Image 1)
+  bone: '#6c6668', boneSh: '#3d393c', boneHi: '#a0989a', boneFar: '#4e494c', boneFarSh: '#2d292c', tooth: '#d9d2c4',
+  gold: '#c49a3e', goldSh: '#6f4f1d', goldHi: '#f0d68a', goldLine: '#3e2810',
+  antler: '#4a3a2c', antlerSh: '#271d15', antlerHi: '#7d6852',
+  cape: '#4f1d20', capeSh: '#2a0f12',
   ember: '#ff7a1a', emberHot: '#ffd27a', emberDeep: '#c2300a',
   volt: '#d9c8ff', voltCore: '#ffffff', voltDeep: '#9b7bff',
   ink: '#0b0c12',
   steel: '#5d6672', steelSh: '#353b45', steelHi: '#b8c2cc', rust: '#8a4325',
-  coat: '#f2f2ee', coatSh: '#b9bec8', hair: '#0d0d14', skin: '#f6e9e2', skinSh: '#d9c1bd',
+  // ref: Image 2 — lavender-tinted whites, charcoal-violet hair
+  coat: '#f1efea', coatSh: '#c4c0cf', surcoat: '#e6e2ec', hair: '#2b2a3a', hairHi: '#6f6b90',
+  skin: '#f7ece8', skinSh: '#dcc6c6', boot: '#cfc9d2', shaft: '#d8cfc1',
 };

@@ -50,27 +50,27 @@ function drawFace(ctx, cx, cy, S, smile, t, o = {}) {
   // eyes: sharp, long, pale violet
   const eye = (sx) => {
     const ex = sx * 0.19, ey = 0.03;
-    const shape = [P(ex - sx * 0.12, ey + 0.01), P(ex - sx * 0.04, ey - 0.05), P(ex + sx * 0.08, ey - 0.045), P(ex + sx * 0.135, ey - 0.005), P(ex + sx * 0.05, ey + 0.035), P(ex - sx * 0.06, ey + 0.035)];
+    const shape = [P(ex - sx * 0.12, ey + 0.012), P(ex - sx * 0.04, ey - 0.028), P(ex + sx * 0.08, ey - 0.03), P(ex + sx * 0.135, ey - 0.002), P(ex + sx * 0.05, ey + 0.035), P(ex - sx * 0.06, ey + 0.035)];
     smoothPath(ctx, shape); ctx.fillStyle = '#fbfaff'; ctx.fill();
     ctx.save(); smoothPath(ctx, shape); ctx.clip();
     const ic = P(ex + sx * 0.005, ey - 0.005);
     const g = ctx.createLinearGradient(ic[0], ic[1] - S * 0.05, ic[0], ic[1] + S * 0.05);
-    g.addColorStop(0, '#6f5aa8'); g.addColorStop(1, '#d9c8ff');
+    g.addColorStop(0, '#9c8cc4'); g.addColorStop(1, '#f1eaff');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ic[0], ic[1], S * 0.048, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#2d2148'; ctx.beginPath(); ctx.arc(ic[0], ic[1], S * 0.02, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#6a5a8e'; ctx.beginPath(); ctx.arc(ic[0], ic[1], S * 0.016, 0, TAU); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ic[0] - S * 0.015, ic[1] - S * 0.02, S * 0.011, 0, TAU); ctx.fill();
     if (o.spark) { ctx.fillStyle = `rgba(230,215,255,${o.spark})`; ctx.fillRect(ic[0] + S * 0.01, ic[1] + S * 0.005, S * 0.025, S * 0.006); }
     ctx.restore();
     // heavy upper lid + wing
     ctx.lineCap = 'round'; ctx.strokeStyle = PAL.ink; ctx.lineWidth = lw * 2.2;
     ctx.beginPath(); const a = P(ex - sx * 0.125, ey + 0.012); ctx.moveTo(a[0], a[1]);
-    const b = P(ex - sx * 0.02, ey - 0.06), c = P(ex + sx * 0.1, ey - 0.05), d = P(ex + sx * 0.17, ey - 0.03);
+    const b = P(ex - sx * 0.02, ey - 0.04), c = P(ex + sx * 0.1, ey - 0.032), d = P(ex + sx * 0.17, ey - 0.02);
     ctx.quadraticCurveTo(b[0], b[1], c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.stroke();
     ctx.lineWidth = lw * 0.8;
     ctx.beginPath(); const e = P(ex - sx * 0.05, ey + 0.04), f = P(ex + sx * 0.09, ey + 0.02); ctx.moveTo(e[0], e[1]); ctx.lineTo(f[0], f[1]); ctx.stroke();
     // brow
     ctx.lineWidth = lw * 1.1;
-    ctx.beginPath(); const g1 = P(ex - sx * 0.1, ey - 0.13), g2 = P(ex + sx * 0.14, ey - 0.15 + (1 - smile) * 0.015 * 0); ctx.moveTo(g1[0], g1[1]); ctx.lineTo(g2[0], g2[1]); ctx.stroke();
+    ctx.beginPath(); const g1 = P(ex - sx * 0.1, ey - 0.12), gc = P(ex + sx * 0.04, ey - 0.2), g2 = P(ex + sx * 0.15, ey - 0.13); ctx.moveTo(g1[0], g1[1]); ctx.quadraticCurveTo(gc[0], gc[1], g2[0], g2[1]); ctx.stroke();
   };
   eye(-1); eye(1);
   // nose
@@ -83,15 +83,18 @@ function drawFace(ctx, cx, cy, S, smile, t, o = {}) {
   if (smile > 0.5) { ctx.lineWidth = lw * 0.8; const m2 = P(0.105, 0.41 - smile * 0.03); ctx.beginPath(); ctx.moveTo(m1[0], m1[1]); ctx.lineTo(m2[0], m2[1]); ctx.stroke(); }
   // center-parted curtains of black hair framing the face
   const curtain = (sx) => {
-    const pts = [P(0, -0.7), P(sx * 0.12, -0.6), P(sx * 0.36, -0.36), P(sx * 0.44, 0.0), P(sx * (0.46 + wv(sx + 7, 0.02)), 0.5), P(sx * (0.5 + wv(sx + 8, 0.06)), 1.05),
-      P(sx * (0.62 + wv(sx + 9, 0.08)), 1.2), P(sx * 0.66, 0.4), P(sx * 0.6, -0.3), P(sx * 0.4, -0.68), P(sx * 0.1, -0.78)];
+    const pts = [P(0, -0.72), P(sx * 0.2, -0.67), P(sx * 0.39, -0.48), P(sx * 0.45, -0.12), P(sx * (0.47 + wv(sx + 7, 0.02)), 0.5), P(sx * (0.5 + wv(sx + 8, 0.06)), 1.05),
+      P(sx * (0.62 + wv(sx + 9, 0.08)), 1.2), P(sx * 0.66, 0.4), P(sx * 0.6, -0.3), P(sx * 0.4, -0.72), P(sx * 0.1, -0.8)];
     smoothPath(ctx, pts); inkFill(ctx, PAL.hair, lw);
     // cel highlight band
-    ctx.strokeStyle = '#34344e'; ctx.lineWidth = lw * 1.6;
-    ctx.beginPath(); const h0 = P(sx * 0.1, -0.66), h1 = P(sx * 0.4, -0.5), h2 = P(sx * 0.52, -0.2);
+    ctx.strokeStyle = PAL.hairHi; ctx.lineWidth = lw * 1.6;
+    ctx.beginPath(); const h0 = P(sx * 0.42, -0.5), h1 = P(sx * 0.53, -0.25), h2 = P(sx * 0.56, 0.2);
     ctx.moveTo(h0[0], h0[1]); ctx.quadraticCurveTo(h1[0], h1[1], h2[0], h2[1]); ctx.stroke();
   };
   curtain(-1); curtain(1);
+  // ear with a small earring
+  smoothPath(ctx, [P(0.41, -0.06), P(0.5, -0.04), P(0.49, 0.12), P(0.42, 0.16)]); inkFill(ctx, PAL.skin, lw);
+  ctx.beginPath(); const er = P(0.45, 0.2); ctx.arc(er[0], er[1], S * 0.014, 0, TAU); inkFill(ctx, '#c9cfe0', lw * 0.7);
   // part line
   ctx.strokeStyle = '#3b3550'; ctx.lineWidth = lw;
   ctx.beginPath(); const pa = P(0, -0.78), pb = P(0, -0.62); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
@@ -273,7 +276,7 @@ function drawHeroFigure(ctx, ox, oy, k, t, u) {
     ctx.fillStyle = iridescent(ctx, [knee[0] - k * 0.04, knee[1]], [knee[0] + k * 0.04, knee[1]]); ctx.fill();
     ctx.strokeStyle = PAL.ink; ctx.lineWidth = lw; ctx.stroke();
     const boot = [[ank[0] - k * 0.05, ank[1] - k * 0.12], [ank[0] + k * 0.05, ank[1] - k * 0.12], [ank[0] + k * 0.055, ank[1] + k * 0.03], [ank[0] - k * 0.055, ank[1] + k * 0.03]];
-    pathPts(ctx, boot); inkFill(ctx, '#ebe8e2', lw);
+    pathPts(ctx, boot); inkFill(ctx, PAL.boot, lw);
     ctx.strokeStyle = '#b5b0a6'; ctx.lineWidth = lw * 0.8; KDRAW.line(ctx, [[ank[0] - k * 0.03, ank[1] - k * 0.05], [ank[0] + k * 0.02, ank[1] - k * 0.03]]);
   }
   // coat body flaring backwards at the hem
@@ -287,12 +290,23 @@ function drawHeroFigure(ctx, ox, oy, k, t, u) {
   const sc = [P(-0.11, 0.04), P(0.11, 0.04), P(0.12, 0.36)];
   for (let i = 0; i <= 8; i++) sc.push(P(0.13 - i * 0.0325, 0.6 + (i % 2) * 0.035 + Math.sin(u * 15 + i) * 0.008));
   sc.push(P(-0.12, 0.36));
-  pathPts(ctx, sc); inkFill(ctx, '#e7e3d9', lw);
+  pathPts(ctx, sc); inkFill(ctx, PAL.surcoat, lw);
+  // iridescent oil-film stains on the surcoat
+  ctx.save(); pathPts(ctx, sc); ctx.clip();
+  for (let i = 0; i < 6; i++) {
+    const c = P(rnds(i * 3.1) * 0.1, 0.15 + rnd(i * 5.3) * 0.45);
+    const gg = ctx.createRadialGradient(c[0], c[1], 0, c[0], c[1], k * 0.06);
+    gg.addColorStop(0, i % 2 ? 'rgba(170,150,230,0.35)' : 'rgba(140,210,220,0.3)'); gg.addColorStop(1, 'rgba(170,150,230,0)');
+    ctx.fillStyle = gg; ctx.fillRect(c[0] - k * 0.06, c[1] - k * 0.06, k * 0.12, k * 0.12);
+  }
+  ctx.restore();
   ctx.fillStyle = 'rgba(160,160,170,0.35)'; pathPts(ctx, [P(0.0, 0.05), P(0.11, 0.04), P(0.12, 0.36), P(0.13, 0.6), P(0.02, 0.62)]); ctx.fill();
   // two brown leather belts
   for (const [y, a] of [[0.33, 0.02], [0.39, -0.03]]) {
     pathPts(ctx, [P(-0.165, y - a), P(0.165, y + a), P(0.165, y + a + 0.022), P(-0.165, y - a + 0.022)]); inkFill(ctx, '#7a4a26', lw);
-    pathPts(ctx, [P(-0.02, y - 0.004), P(0.02, y - 0.002), P(0.02, y + 0.026), P(-0.02, y + 0.024)]); inkFill(ctx, '#c9a35a', lw * 0.8);
+    pathPts(ctx, [P(-0.02, y - 0.004), P(0.02, y - 0.002), P(0.02, y + 0.026), P(-0.02, y + 0.024)]); inkFill(ctx, '#b8bccb', lw * 0.8);
+    // hanging strap
+    pathPts(ctx, [P(0.06, y + 0.01), P(0.085, y + 0.012), P(0.08 + Math.sin(u * 12 + y * 20) * 0.01, y + 0.17), P(0.055, y + 0.168)]); inkFill(ctx, '#7a4a26', lw * 0.8);
   }
   // arms
   const shL = P(-0.19, 0.04), shR = P(0.19, 0.04);
@@ -312,10 +326,11 @@ function drawHeroFigure(ctx, ox, oy, k, t, u) {
     ctx.lineCap = 'round';
     ctx.strokeStyle = PAL.ink; ctx.lineWidth = k * 0.085 + lw * 2; KDRAW.line(ctx, [a, e]);
     ctx.strokeStyle = PAL.coat; ctx.lineWidth = k * 0.085; KDRAW.line(ctx, [a, e]);
-    if (patch) { const m = v2.lerp(a, e, 0.45); ctx.beginPath(); ctx.arc(m[0], m[1], k * 0.024, 0, TAU); inkFill(ctx, '#111118', lw); }
+    ctx.strokeStyle = PAL.coatSh; ctx.lineWidth = k * 0.025; KDRAW.line(ctx, [v2.add(a, [k * 0.02, k * 0.01]), v2.add(e, [k * 0.02, k * 0.01])]);
+    if (patch) { const m = v2.lerp(a, e, 0.4); ctx.beginPath(); ctx.roundRect(m[0] - k * 0.022, m[1] - k * 0.03, k * 0.044, k * 0.06, k * 0.012); inkFill(ctx, '#111118', lw); ctx.beginPath(); ctx.arc(m[0], m[1], k * 0.01, 0, TAU); ctx.strokeStyle = '#9aa0b0'; ctx.lineWidth = lw * 0.7; ctx.stroke(); }
     // mechanical gauntlet
     ctx.strokeStyle = PAL.ink; ctx.lineWidth = k * 0.07 + lw * 2; KDRAW.line(ctx, [e, h]);
-    ctx.strokeStyle = '#8d96a3'; ctx.lineWidth = k * 0.07; KDRAW.line(ctx, [e, h]);
+    ctx.strokeStyle = '#aab2c4'; ctx.lineWidth = k * 0.07; KDRAW.line(ctx, [e, h]);
     ctx.strokeStyle = iridescent(ctx, e, h); ctx.lineWidth = k * 0.02; KDRAW.line(ctx, [v2.lerp(e, h, 0.15), v2.lerp(e, h, 0.85)]);
     ctx.strokeStyle = PAL.ink; ctx.lineWidth = lw;
     for (let i = 1; i < 4; i++) { const p = v2.lerp(e, h, i / 4), d = v2.norm(v2.sub(h, e)), n = [-d[1] * k * 0.035, d[0] * k * 0.035]; KDRAW.line(ctx, [v2.add(p, n), v2.sub(p, n)]); }
@@ -336,12 +351,17 @@ function drawHeroFigure(ctx, ox, oy, k, t, u) {
     const tip = v2.add(sc2, v2.mul(d, tipLen)), butt = v2.sub(sc2, v2.mul(d, buttLen));
     ctx.lineCap = 'round';
     ctx.strokeStyle = PAL.ink; ctx.lineWidth = k * 0.026 + lw * 2; KDRAW.line(ctx, [butt, tip]);
-    ctx.strokeStyle = '#1b161a'; ctx.lineWidth = k * 0.026; KDRAW.line(ctx, [butt, tip]);
-    ctx.strokeStyle = '#3d3238'; ctx.lineWidth = k * 0.008;
-    for (let i = 0; i < 8; i++) { const p = v2.lerp(butt, sc2, 0.4 + i * 0.07); KDRAW.line(ctx, [v2.add(p, [-k * 0.012, -k * 0.006]), v2.add(p, [k * 0.012, k * 0.006])]); }
+    ctx.strokeStyle = PAL.shaft; ctx.lineWidth = k * 0.026; KDRAW.line(ctx, [butt, tip]);
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = '#6a4a3e'; ctx.lineWidth = k * 0.03; KDRAW.line(ctx, [v2.lerp(butt, tip, 0.76), v2.lerp(butt, tip, 0.88)]);
+    ctx.strokeStyle = '#1b1820'; ctx.lineWidth = k * 0.03; KDRAW.line(ctx, [v2.lerp(butt, tip, 0.03), v2.lerp(butt, tip, 0.13)]);
+    ctx.lineCap = 'round';
     const n = [-d[1], d[0]];
-    const blade = [v2.add(tip, v2.mul(n, k * 0.03)), v2.add(tip, v2.mul(d, k * 0.2)), v2.sub(tip, v2.mul(n, k * 0.03)), v2.sub(tip, v2.mul(d, k * 0.03))];
-    pathPts(ctx, blade); ctx.fillStyle = iridescent(ctx, blade[3], blade[1]); ctx.fill(); ctx.strokeStyle = PAL.ink; ctx.lineWidth = lw; ctx.stroke();
+    ctx.strokeStyle = PAL.ink; ctx.lineWidth = k * 0.016 + lw * 2; KDRAW.line(ctx, [v2.add(tip, v2.mul(n, k * 0.07)), v2.sub(tip, v2.mul(n, k * 0.07))]);
+    ctx.strokeStyle = '#aab2c4'; ctx.lineWidth = k * 0.016; KDRAW.line(ctx, [v2.add(tip, v2.mul(n, k * 0.07)), v2.sub(tip, v2.mul(n, k * 0.07))]);
+    const blade = [v2.add(tip, v2.mul(n, k * 0.022)), v2.add(v2.add(tip, v2.mul(d, k * 0.1)), v2.mul(n, k * 0.03)), v2.add(tip, v2.mul(d, k * 0.26)),
+      v2.sub(v2.add(tip, v2.mul(d, k * 0.1)), v2.mul(n, k * 0.03)), v2.sub(tip, v2.mul(n, k * 0.022))];
+    pathPts(ctx, blade); ctx.fillStyle = iridescent(ctx, tip, blade[2]); ctx.fill(); ctx.strokeStyle = PAL.ink; ctx.lineWidth = lw; ctx.stroke();
     // residual lightning on the spear while it falls
     if (u < 1.3) {
       ctx.globalCompositeOperation = 'lighter';
@@ -351,8 +371,11 @@ function drawHeroFigure(ctx, ox, oy, k, t, u) {
   }
   arm(shL, elb, hand, false);
   // thick collar + iridescent gorget
-  smoothPath(ctx, [P(-0.17, 0.02), P(-0.12, -0.08), P(-0.04, -0.06), P(0, 0.05), P(0.04, -0.06), P(0.12, -0.08), P(0.17, 0.02), P(0.08, 0.08), P(-0.08, 0.08)]);
-  inkFill(ctx, '#f6f6f2', lw * 1.2);
+  pathPts(ctx, [P(-0.05, -0.12), P(0.05, -0.12), P(0.06, 0.02), P(-0.06, 0.02)]); inkFill(ctx, '#1b1820', lw);
+  for (const sx of [-1, 1]) {
+    smoothPath(ctx, [P(sx * 0.17, 0.03), P(sx * 0.13, -0.07), P(sx * 0.1, -0.15), P(sx * 0.055, -0.13), P(sx * 0.05, 0.0), P(sx * 0.08, 0.07)]);
+    inkFill(ctx, '#f6f5f2', lw * 1.2);
+  }
   smoothPath(ctx, [P(-0.07, -0.04), P(0.07, -0.04), P(0.06, 0.03), P(0, 0.06), P(-0.06, 0.03)]);
   ctx.fillStyle = iridescent(ctx, P(-0.07, 0), P(0.07, 0)); ctx.fill(); ctx.strokeStyle = PAL.ink; ctx.lineWidth = lw; ctx.stroke();
   // head

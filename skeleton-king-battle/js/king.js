@@ -36,7 +36,7 @@ KING.tr = {
     [21.35, 4], [21.6, 22], [21.75, 20], [22.4, 2], [22.65, 22], [22.8, 20], [24.2, 8], [26.0, 8], [26.2, 14],
     [26.4, 17], [26.9, 17]]),
   sy: T([[1.6, -6], [2.25, -8], [2.45, -6], [5.3, 2], [5.6, 20], [5.9, 22], [6.05, 14], [6.2, -2], [6.6, -3],
-    [8.6, -3], [10.8, -3], [11.5, 22], [11.7, 24], [13.4, 16], [14.4, 15.5], [14.8, 10], [15.4, -4], [16.4, -8],
+    [8.6, -3], [10.8, -3], [11.5, 22], [11.7, 24], [13.4, 10.4], [14.4, 10], [14.8, 10], [15.4, -4], [16.4, -8],
     [17.1, -9], [17.3, -6], [18.15, 2], [18.45, 2], [20.25, 14], [20.5, -6], [20.7, -8], [21.35, 12], [21.6, -4],
     [21.75, -7], [22.4, 0], [22.65, -2], [22.8, -4], [24.2, 24], [26.0, 26], [26.2, 14], [26.4, -2], [26.9, -3]]),
   sa: T([[1.6, 0.05], [2.45, 0.05], [5.3, 1.4], [5.6, 1.9], [5.9, 2.0], [6.05, 0.6], [6.2, -0.45], [6.6, -0.5],
@@ -58,7 +58,7 @@ KING.tr = {
 
 KING.BLADE = 22;
 KING.STRIDE = 26;
-KING.ARM = [10, 10];
+KING.ARM = [12, 12];
 KING.LEG = [7.2, 7.6];
 
 // gait phase = distance travelled / stride (precomputed integral)
@@ -114,19 +114,19 @@ function kingPose(t) {
   const gy = -P.y; // ground in local (pitch ignored for targets)
   const L = {};
   L.pelvis = [-10, -0.3];
-  L.spineMid = [-2, 1.9 - dip * 0.5];
-  L.chest = [5.5, 2.2 - dip * 1.2];
-  L.neck = [11, 3 - dip * 3.6 - col * 2];
-  L.skull = [15.4, 2.6 - dip * 7.6 - col * 4];
-  P.skullAng = -0.12 - dip * 0.55 - col * 0.3 + Math.sin(t * 9) * 0.03;
-  L.shN = [8.2, 1.0 - dip * 1.0];
-  L.shF = [8.9, 1.9 - dip * 1.0];
+  L.spineMid = [-2, 3.0 - dip * 0.8];
+  L.chest = [5.0, 5.4 - dip * 2.0];
+  L.neck = [10.6, 6.6 - dip * 4.5 - col * 3];
+  L.skull = [16.2, 3.6 - dip * 6.5 - col * 5];
+  P.skullAng = -0.38 - dip * 0.35 - col * 0.3 + Math.sin(t * 9) * 0.03;
+  L.shN = [7.6, 4.4 - dip * 1.8];
+  L.shF = [8.2, 5.2 - dip * 1.8];
   L.hipN = [-10, -0.9];
   L.hipF = [-9.5, -0.2];
-  L.core = [3.6, -2.0 - dip * 0.6];
-  L.rib = [2.4, -1.6 - dip * 0.6];
-  L.ribEdge = [6.4, -4.4 - dip * 0.8];
-  L.knot = [11.6, -3.2 - dip * 1.6];
+  L.core = [3.8, 0.6 - dip * 1.0];
+  L.rib = [2.6, 0.8 - dip * 1.0];
+  L.ribEdge = [6.6, -1.8 - dip * 1.4];
+  L.knot = [9.6, 1.4 - dip * 2.0];
 
   const A = KING.STRIDE / 4 * clamp(run * 1.1, 0.25, 1);
   const lift = 3.5 * clamp(run, 0.3, 1);
@@ -214,7 +214,7 @@ function kingAnchor(P, name, u = 0.5) {
     case 'bladeMid': l = v2.lerp(L.haF, L.tip, 0.45); dz = 3; break;
     case 'swordTip': l = L.tip; dz = 3; break;
     case 'skull': l = L.skull; break;
-    case 'antler': l = P.skullL([3.2, 9.6]); break;
+    case 'antler': l = P.skullL(antlerPt([0.4 * 1.1, 8.0 * 1.1])); break;
     case 'eye': l = P.skullL([1.6, 0.6]); dz = -1; break;
     case 'rib': l = L.rib; break;
     case 'ribEdge': l = L.ribEdge; dz = -2; break;
@@ -238,30 +238,38 @@ function kingAnchor(P, name, u = 0.5) {
 const KDRAW = {};
 KDRAW.line = (ctx, pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke(); };
 
-function boneSeg(ctx, a, b, w, R, far) {
+function boneSeg(ctx, a, b, w, R, far, pal) {
   const ol = R.ol;
   ctx.lineCap = 'round';
   ctx.strokeStyle = PAL.ink; ctx.lineWidth = w + ol * 2;
   KDRAW.line(ctx, [a, b]);
   if (R.sil) return;
-  ctx.strokeStyle = far ? '#a7a7ae' : PAL.bone; ctx.lineWidth = w;
+  const base = pal ? (far ? pal.far : pal.base) : (far ? PAL.boneFar : PAL.bone);
+  const sh = pal ? pal.sh : (far ? PAL.boneFarSh : PAL.boneSh);
+  ctx.strokeStyle = base; ctx.lineWidth = w;
   KDRAW.line(ctx, [a, b]);
   const d = v2.norm(v2.sub(b, a)), n = [-d[1], d[0]];
   const side = n[1] > 0 ? -1 : 1; // shadow on the lower side (cel)
   const o = v2.mul(n, side * w * 0.24);
-  ctx.strokeStyle = far ? '#6d7080' : PAL.boneSh; ctx.lineWidth = w * 0.46;
+  ctx.strokeStyle = sh; ctx.lineWidth = w * 0.46;
   KDRAW.line(ctx, [v2.add(a, o), v2.add(b, o)]);
   if (!far) {
     const h = v2.mul(n, -side * w * 0.3);
-    ctx.strokeStyle = PAL.boneHi; ctx.lineWidth = w * 0.14;
+    ctx.strokeStyle = pal ? pal.hi : PAL.boneHi; ctx.lineWidth = w * 0.14;
     KDRAW.line(ctx, [v2.add(a, h), v2.add(b, h)]);
+  }
+  // stringy dried sinew along long limbs
+  if (!pal && w > 0.9 && v2.len(v2.sub(b, a)) > 4) {
+    ctx.strokeStyle = far ? '#1f1c1e' : '#2a2628'; ctx.lineWidth = w * 0.08;
+    const m = v2.lerp(a, b, 0.5), q = v2.mul(n, w * 0.12);
+    ctx.beginPath(); ctx.moveTo(...v2.add(a, q)); ctx.quadraticCurveTo(...v2.sub(m, q), ...v2.add(b, q)); ctx.stroke();
   }
 }
 function knob(ctx, p, r, R, far) {
   ctx.beginPath(); ctx.arc(p[0], p[1], r + R.ol, 0, TAU); ctx.fillStyle = PAL.ink; ctx.fill();
   if (R.sil) return;
-  ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, TAU); ctx.fillStyle = far ? '#a7a7ae' : PAL.bone; ctx.fill();
-  ctx.beginPath(); ctx.arc(p[0] + r * 0.2, p[1] - r * 0.25, r * 0.62, 0, TAU); ctx.fillStyle = far ? '#6d7080' : PAL.boneSh; ctx.fill();
+  ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, TAU); ctx.fillStyle = far ? PAL.boneFar : PAL.bone; ctx.fill();
+  ctx.beginPath(); ctx.arc(p[0] + r * 0.2, p[1] - r * 0.25, r * 0.62, 0, TAU); ctx.fillStyle = far ? PAL.boneFarSh : PAL.boneSh; ctx.fill();
 }
 function polyFill(ctx, pts, fill, R, ol = true) {
   ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
@@ -304,7 +312,7 @@ function engrave(ctx, cx, cy, s, R) {
 
 function pauldron(ctx, c, R, far, t) {
   for (let j = 2; j >= 0; j--) {
-    const rx = 3.4 - j * 0.25, ry = 1.5, oy = -j * 1.05;
+    const rx = 2.9 - j * 0.22, ry = 1.35, oy = -j * 0.95;
     const pts = [];
     for (let i = 0; i <= 12; i++) {
       const a = Math.PI * (i / 12);
@@ -317,80 +325,94 @@ function pauldron(ctx, c, R, far, t) {
 }
 
 function drawCape(ctx, P, R, t) {
+  // dark maroon, heavily tattered; long strips trail and fray into black smoke (ref: Image 1)
   const sp = clamp(P.speed / 30, 0.2, 1);
   const fl = (i, a) => Math.sin(t * 7 + i * 1.3) * a * (0.5 + sp);
-  const top = [[9, 3.2], [3, 4.8 + fl(0, 0.4)], [-5, 5.6 + fl(1, 0.6)], [-13, 5 + fl(2, 0.9)], [-19 - sp * 4, 4.4 + fl(3, 1.2)]];
-  const bot = [[-21 - sp * 5, 0.5 + fl(4, 1.4)], [-18, -3 + fl(5, 1)], [-15.5, -1.2 + fl(6, 0.8)], [-12.5, -5 + fl(7, 0.8)],
-    [-9, -3 + fl(8, 0.6)], [-6, -6.2 + fl(9, 0.6)], [-2, -3.5 + fl(10, 0.5)], [1.5, -5.4 + fl(11, 0.5)], [5, -2.4], [8, -0.5]];
+  const top = [[8.6, 7.6], [3, 8.8 + fl(0, 0.4)], [-5, 7.6 + fl(1, 0.6)], [-13, 5.6 + fl(2, 0.9)], [-20 - sp * 4, 4.0 + fl(3, 1.2)]];
+  const bot = [[-23 - sp * 6, -0.5 + fl(4, 1.4)], [-20, -6.5 + fl(5, 1)], [-17.5, -2.6 + fl(6, 0.8)], [-15, -9 + fl(7, 0.9)],
+    [-12, -3.8 + fl(8, 0.6)], [-9, -9.5 + fl(9, 0.7)], [-6, -4.5 + fl(10, 0.5)], [-3, -8.8 + fl(11, 0.6)], [0, -3.6], [2.6, -7 + fl(12, 0.5)],
+    [5, -1.5], [7, -3.5 + fl(13, 0.4)], [8.4, 2.5]];
   const pts = top.concat(bot);
   polyFill(ctx, pts, PAL.cape, R);
   if (!R.sil) {
-    // fold shadows
+    // fold shadows + worn lighter edge
+    ctx.save(); ctx.beginPath(); ctx.moveTo(...pts[0]); for (const q of pts) ctx.lineTo(...q); ctx.closePath(); ctx.clip();
     ctx.fillStyle = PAL.capeSh;
-    for (let i = 0; i < 4; i++) {
-      const x = 4 - i * 6;
+    for (let i = 0; i < 5; i++) {
+      const x = 5 - i * 5.5;
       ctx.beginPath();
-      ctx.moveTo(x, 4); ctx.lineTo(x - 2.4, 4.4); ctx.lineTo(x - 3.6 + fl(i, 0.8), -3.4); ctx.lineTo(x - 1.6, -2.2);
+      ctx.moveTo(x - 0.6, 8); ctx.quadraticCurveTo(x - 1.6, 1, x - 3.2 + fl(i, 0.8), -9); ctx.lineTo(x - 1.6 + fl(i, 0.8), -9); ctx.quadraticCurveTo(x - 0.6, 1, x + 0.4, 8);
       ctx.closePath(); ctx.fill();
     }
+    // lower half falls into shadow
+    ctx.fillStyle = 'rgba(30,8,10,0.35)'; ctx.fillRect(-40, -12, 60, 10);
+    ctx.restore();
+    ctx.strokeStyle = '#6e2a2c'; ctx.lineWidth = R.ol * 1.2;
+    KDRAW.line(ctx, top);
   }
-  // hem dissolving into black smoke
+  // hem dissolving into black smoke strips
   if (!R.sil) {
-    for (let k = 0; k < 16; k++) {
-      const ph = (t * 0.9 + k / 16) % 1;
+    for (let k = 0; k < 22; k++) {
+      const ph = (t * 0.9 + k / 22) % 1;
       const b = bot[k % (bot.length - 2)];
-      const x = b[0] - ph * (6 + sp * 10) + Math.sin(k * 3.1 + t) * 0.8;
-      const y = b[1] - ph * 2 + Math.sin(ph * 6 + k) * 0.6;
-      const r = 0.8 + ph * 2.8;
+      const x = b[0] - ph * (7 + sp * 12) + Math.sin(k * 3.1 + t) * 0.8;
+      const y = b[1] - ph * 1.5 + Math.sin(ph * 6 + k) * 0.6;
+      const r = 0.8 + ph * 3;
       const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, `rgba(12,10,16,${(1 - ph) * 0.6})`); g.addColorStop(1, 'rgba(12,10,16,0)');
+      g.addColorStop(0, `rgba(14,10,14,${(1 - ph) * 0.6})`); g.addColorStop(1, 'rgba(14,10,14,0)');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
     }
-    ctx.globalAlpha = 1;
   }
 }
 
+const ANTLER = { base: PAL.antler, far: '#3a2e24', sh: PAL.antlerSh, hi: PAL.antlerHi };
+// antlers sweep back from their base on the skull (skull-local)
+const ANTLER_BASE = [-0.8, 1.8], ANTLER_ROT = 0.55;
+function antlerPt(p) { return v2.add(ANTLER_BASE, v2.rot(v2.sub(p, ANTLER_BASE), ANTLER_ROT)); }
 function drawSkull(ctx, P, R, t) {
+  // gilded beast skull with dark antlers (ref: Image 1)
   const L = P.L;
   ctx.save();
   ctx.translate(L.skull[0], L.skull[1]);
   ctx.rotate(P.skullAng);
-  // antlers (far set first, darker)
   const antler = (ox, far) => {
+    const k = 1.1;
     const beams = [
-      [[-0.6 + ox, 1.8], [-2.2 + ox, 4.6], [-1.6 + ox, 7.6], [-3.4 + ox, 10.8], [-2.6 + ox, 13.2]],
-      [[-2.0 + ox, 4.3], [0.4 + ox, 5.6], [2.2 + ox, 5.2]],
-      [[-1.7 + ox, 7.2], [1.0 + ox, 8.4], [3.2 + ox, 9.6]],
-      [[-3.1 + ox, 10.2], [-1.0 + ox, 11.6], [0.2 + ox, 13.6]],
-      [[-3.2 + ox, 10.6], [-5.6 + ox, 11.2], [-7.0 + ox, 12.8]],
-      [[-2.1 + ox, 5.0], [-4.6 + ox, 6.0], [-6.2 + ox, 5.6]],
+      [[-0.8, 1.8], [-2.6, 4.4], [-3.6, 7.6], [-5.6, 10.4], [-6.0, 13.4]],
+      [[-2.5, 4.2], [-0.6, 6.0], [0.4, 8.0]],
+      [[-3.5, 7.2], [-1.8, 9.4], [-1.4, 11.6]],
+      [[-5.4, 10.0], [-3.8, 12.0], [-3.4, 14.0]],
+      [[-5.6, 10.6], [-8.0, 11.6], [-9.4, 13.4]],
+      [[-2.8, 5.0], [-5.4, 5.8], [-7.0, 5.2]],
+      [[-3.8, 8.2], [-6.4, 8.4], [-8.0, 9.6]],
     ];
     for (let bi = 0; bi < beams.length; bi++) {
-      const b = beams[bi];
-      for (let i = 0; i < b.length - 1; i++) boneSeg(ctx, b[i], b[i + 1], (bi === 0 ? 0.9 : 0.6) * (1 - i * 0.22), R, far);
+      const b = beams[bi].map(p => antlerPt([p[0] * k + ox, p[1] * k]));
+      for (let i = 0; i < b.length - 1; i++) boneSeg(ctx, b[i], b[i + 1], (bi === 0 ? 0.95 : 0.62) * (1 - i * 0.2), R, far, ANTLER);
     }
   };
-  antler(-0.9, true);
-  // cranium + snout
+  antler(-1.2, true);
   const jaw = P.jaw * 0.9;
-  const jawPts = [[0.6, -1.0], [5.6, -1.3 - jaw], [5.5, -2.0 - jaw], [3.2, -2.2 - jaw * 0.6], [0.0, -2.4]];
-  polyFill(ctx, jawPts, PAL.bone, R);
-  const head = [[-2.3, 0.2], [-2.0, 1.7], [-0.6, 2.5], [1.2, 2.2], [3.4, 1.3], [6.1, 0.5], [6.6, -0.5], [5.8, -1.1], [2.0, -1.4], [-0.6, -1.9], [-2.0, -1.2]];
-  polyFill(ctx, head, PAL.bone, R);
+  const jawPts = [[0.6, -1.0], [5.4, -1.4 - jaw], [5.3, -2.1 - jaw], [3.0, -2.3 - jaw * 0.6], [0.0, -2.5]];
+  goldPlate(ctx, jawPts, R, true);
+  const head = [[-2.3, 0.2], [-2.0, 1.8], [-0.6, 2.6], [1.2, 2.3], [3.4, 1.3], [6.0, 0.4], [6.4, -0.6], [5.6, -1.2], [2.0, -1.4], [-0.6, -1.9], [-2.0, -1.2]];
+  goldPlate(ctx, head, R, false);
   if (!R.sil) {
-    ctx.fillStyle = PAL.boneSh;
-    ctx.beginPath(); ctx.moveTo(-2.0, -1.2); ctx.lineTo(2.0, -1.4); ctx.lineTo(5.8, -1.1); ctx.lineTo(6.4, -0.6); ctx.lineTo(3.0, -0.3); ctx.lineTo(-1.6, -0.4); ctx.closePath(); ctx.fill();
-    // teeth
-    ctx.fillStyle = PAL.boneHi; ctx.strokeStyle = PAL.ink; ctx.lineWidth = R.ol * 0.7;
+    // teeth (bone) under the gold
+    ctx.fillStyle = PAL.tooth; ctx.strokeStyle = PAL.ink; ctx.lineWidth = R.ol * 0.7;
     for (let i = 0; i < 6; i++) {
-      const x = 1.8 + i * 0.7;
-      ctx.beginPath(); ctx.moveTo(x, -1.25); ctx.lineTo(x + 0.25, -1.75 - jaw * 0.3); ctx.lineTo(x + 0.5, -1.25); ctx.closePath(); ctx.fill(); ctx.stroke();
+      const x = 1.8 + i * 0.65;
+      ctx.beginPath(); ctx.moveTo(x, -1.3); ctx.lineTo(x + 0.25, -1.85 - jaw * 0.3); ctx.lineTo(x + 0.5, -1.3); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
-    // nasal cavity + socket
+    // engraved ridge lines on the mask
+    ctx.strokeStyle = PAL.goldLine; ctx.lineWidth = R.ol;
+    ctx.beginPath(); ctx.moveTo(-1.6, 1.6); ctx.quadraticCurveTo(1.5, 2.2, 5.8, 0.2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-0.4, -1.2); ctx.quadraticCurveTo(-1.2, 0.4, -0.4, 2.3); ctx.stroke();
+    // nasal cavity + deep socket
     ctx.fillStyle = '#140708';
-    ctx.beginPath(); ctx.ellipse(5.2, 0.15, 0.45, 0.25, -0.2, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(1.5, 0.65, 0.85, 0.6, -0.15, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(5.1, 0.0, 0.45, 0.25, -0.2, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(1.5, 0.65, 0.9, 0.62, -0.15, 0, TAU); ctx.fill();
     ctx.strokeStyle = PAL.ink; ctx.lineWidth = R.ol * 1.4; ctx.stroke();
   }
   antler(0, false);
@@ -420,7 +442,7 @@ function drawRibcage(ctx, P, R, t) {
   const n = 9;
   for (let i = 0; i < n; i++) {
     const u = i / (n - 1);
-    const sx = lerp(-3, 9.6, u);
+    const sx = lerp(-3, 7.4, u);
     const sy = lerp(L.spineMid[1], L.chest[1], u) - 0.2;
     const depth = (0.45 + 0.55 * Math.sin(Math.PI * (u * 0.85 + 0.12))) * 6.6;
     const a = [sx, sy], c = [sx + 3.2, sy - depth * 0.45], b = [sx + 2.2 + u * 1.2, sy - depth];
@@ -430,7 +452,7 @@ function drawRibcage(ctx, P, R, t) {
     if (!R.sil) {
       ctx.strokeStyle = PAL.bone; ctx.lineWidth = 0.75;
       ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo(c[0], c[1], b[0], b[1]); ctx.stroke();
-      ctx.strokeStyle = PAL.boneSh; ctx.lineWidth = 0.3;
+      ctx.strokeStyle = PAL.boneHi; ctx.lineWidth = 0.18;
       ctx.beginPath(); ctx.moveTo(a[0] - 0.15, a[1] - 0.2); ctx.quadraticCurveTo(c[0] - 0.2, c[1] - 0.2, b[0] - 0.2, b[1]); ctx.stroke();
     }
   }
@@ -486,16 +508,18 @@ function drawChain(ctx, P, R, t) {
   cat(a, k, 0.9, 7); cat(k, b, 0.8, 6);
   // loose end swinging (the chain that swings toward the soldier at 9.35)
   const sw = Math.sin(t * 4.2) * 0.6 + Math.sin(t * 1.3) * 0.25 + (P.speed / 60);
-  for (let i = 1; i <= 7; i++) links.push([k[0] + Math.sin(sw) * i * 0.75, k[1] - Math.cos(sw) * i * 0.75]);
+  for (let i = 1; i <= 10; i++) links.push([k[0] + Math.sin(sw) * i * 0.75, k[1] - 1.2 - Math.cos(sw) * i * 0.75]);
+  for (let i = 1; i <= 8; i++) links.push([k[0] - 0.8 + Math.sin(sw * 0.7 + 0.4) * i * 0.75, k[1] - 1.0 - Math.cos(sw * 0.7 + 0.4) * i * 0.75]);
   for (const p of links) {
     ctx.beginPath(); ctx.ellipse(p[0], p[1], 0.36, 0.24, 0.6, 0, TAU);
     ctx.fillStyle = R.sil ? PAL.ink : PAL.gold; ctx.fill();
     ctx.strokeStyle = PAL.ink; ctx.lineWidth = R.ol; ctx.stroke();
   }
-  // knot medallion
-  ctx.beginPath(); ctx.arc(k[0], k[1], 0.9, 0, TAU);
-  ctx.fillStyle = R.sil ? PAL.ink : PAL.goldHi; ctx.fill(); ctx.strokeStyle = PAL.ink; ctx.lineWidth = R.ol * 1.5; ctx.stroke();
-  if (!R.sil) { ctx.beginPath(); ctx.arc(k[0], k[1], 0.45, 0, TAU); ctx.fillStyle = PAL.emberDeep; ctx.fill(); }
+  // heavy gold ring at the chest that the chains hang from
+  ctx.lineWidth = 0.55 + R.ol * 2; ctx.strokeStyle = PAL.ink;
+  ctx.beginPath(); ctx.arc(k[0], k[1], 1.25, 0, TAU); ctx.stroke();
+  ctx.lineWidth = 0.55; ctx.strokeStyle = R.sil ? PAL.ink : PAL.gold; ctx.stroke();
+  if (!R.sil) { ctx.lineWidth = 0.16; ctx.strokeStyle = PAL.goldHi; ctx.beginPath(); ctx.arc(k[0], k[1], 1.3, 2.2, 3.6); ctx.stroke(); }
 }
 
 function drawArm(ctx, P, sh, el, ha, R, far, gauntlet) {
@@ -506,13 +530,13 @@ function drawArm(ctx, P, sh, el, ha, R, far, gauntlet) {
   knob(ctx, el, 0.9, R, far);
   if (gauntlet) {
     // gold bracer from 35% to 95% of the forearm
-    const a = v2.lerp(el, ha, 0.35), b = v2.lerp(el, ha, 0.95);
-    const m = [-d[1] * 1.15, d[0] * 1.15], m2 = [-d[1] * 1.35, d[0] * 1.35];
+    const a = v2.lerp(el, ha, 0.12), b = v2.lerp(el, ha, 0.9);
+    const m = [-d[1] * 1.2, d[0] * 1.2], m2 = [-d[1] * 1.45, d[0] * 1.45];
     goldPlate(ctx, [v2.add(a, m), v2.add(b, m2), v2.sub(b, m2), v2.sub(a, m)], R, far);
     if (!R.sil) {
       ctx.strokeStyle = PAL.goldLine; ctx.lineWidth = R.ol;
-      for (let i = 1; i < 4; i++) {
-        const p = v2.lerp(a, b, i / 4); const mm = v2.lerp(m, m2, i / 4);
+      for (let i = 1; i < 6; i++) {
+        const p = v2.lerp(a, b, i / 6); const mm = v2.lerp(m, m2, i / 6);
         KDRAW.line(ctx, [v2.add(p, mm), v2.sub(p, mm)]);
       }
     }
@@ -528,7 +552,7 @@ function drawClaw(ctx, P, R, t) {
   for (let f = 0; f < 4; f++) {
     let ang = base + (f - 1.5) * 0.32 * open - 0.15;
     let p = h;
-    const segs = [2.0, 1.7, 1.5];
+    const segs = [2.7, 2.3, 1.9];
     for (let s = 0; s < 3; s++) {
       const q = [p[0] + Math.cos(ang) * segs[s], p[1] + Math.sin(ang) * segs[s]];
       boneSeg(ctx, p, q, 0.55 - s * 0.12, R, false);
@@ -537,7 +561,7 @@ function drawClaw(ctx, P, R, t) {
     }
     // talon
     const tip = [p[0] + Math.cos(ang) * 1.3, p[1] + Math.sin(ang) * 1.3];
-    polyFill(ctx, [[p[0] - 0.25, p[1]], tip, [p[0] + 0.25, p[1] - 0.15]], '#2a2420', R);
+    polyFill(ctx, [[p[0] - 0.25, p[1]], tip, [p[0] + 0.25, p[1] - 0.15]], '#151214', R);
   }
 }
 
@@ -620,12 +644,12 @@ function drawKing(ctx, P, R) {
   for (let i = 0; i < 14; i++) {
     const u = i / 13, seg = Math.min(2, Math.floor(u * 3)), uu = u * 3 - seg;
     const p = v2.lerp(spine[seg], spine[seg + 1], uu);
-    polyFill(ctx, [[p[0] - 0.45, p[1] + 0.5], [p[0] - 0.9, p[1] + 1.5], [p[0] + 0.35, p[1] + 0.6]], PAL.bone, R);
+    polyFill(ctx, [[p[0] - 0.45, p[1] + 0.5], [p[0] - 0.9, p[1] + 1.6], [p[0] + 0.35, p[1] + 0.6]], PAL.boneSh, R);
   }
   drawRibcage(ctx, P, R, t);
   // pelvis wing
   const pv = L.pelvis;
-  polyFill(ctx, [[pv[0] - 2.6, pv[1] + 1.4], [pv[0] + 1.2, pv[1] + 2.2], [pv[0] + 2.4, pv[1] - 0.6], [pv[0] + 0.6, pv[1] - 2.8], [pv[0] - 2.2, pv[1] - 1.8]], PAL.bone, R);
+  polyFill(ctx, [[pv[0] - 2.6, pv[1] + 1.4], [pv[0] + 1.2, pv[1] + 2.2], [pv[0] + 2.4, pv[1] - 0.6], [pv[0] + 0.6, pv[1] - 2.8], [pv[0] - 2.2, pv[1] - 1.8]], PAL.boneFar, R);
   if (!R.sil) { ctx.fillStyle = '#1c1215'; ctx.beginPath(); ctx.ellipse(pv[0] - 0.1, pv[1] - 0.2, 0.8, 0.6, 0.3, 0, TAU); ctx.fill(); }
   // waist tassets
   for (let i = 0; i < 3; i++) {

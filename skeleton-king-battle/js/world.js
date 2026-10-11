@@ -301,7 +301,7 @@ function drawSky(ctx, t) {
 function drawGround(ctx, t) {
   const C = CAMERA;
   const g = ctx.createLinearGradient(0, C.hY, 0, C.H * 1.4);
-  g.addColorStop(0, '#dfe8ee'); g.addColorStop(0.08, PAL.iceFar); g.addColorStop(0.5, '#93a8b8'); g.addColorStop(1, '#5d7386');
+  g.addColorStop(0, '#f1f5f8'); g.addColorStop(0.08, '#e6edf2'); g.addColorStop(0.5, '#c6d3dc'); g.addColorStop(1, '#97aaba');
   ctx.fillStyle = g; ctx.fillRect(-C.W, C.hY, C.W * 3, C.H * 3);
   // horizon haze
   const hz = ctx.createLinearGradient(0, C.hY - 40, 0, C.hY + 30);
@@ -350,9 +350,9 @@ function drawHexField(ctx, t) {
       }
     }
   }
-  ctx.strokeStyle = 'rgba(30,48,70,0.18)'; ctx.lineWidth = 0.7; ctx.stroke(far);
-  ctx.strokeStyle = 'rgba(24,40,62,0.32)'; ctx.lineWidth = 1.1; ctx.stroke(mid);
-  ctx.strokeStyle = 'rgba(18,32,52,0.5)'; ctx.lineWidth = 2.0; ctx.stroke(near);
+  ctx.strokeStyle = 'rgba(70,92,115,0.22)'; ctx.lineWidth = 0.7; ctx.stroke(far);
+  ctx.strokeStyle = 'rgba(60,82,108,0.34)'; ctx.lineWidth = 1.1; ctx.stroke(mid);
+  ctx.strokeStyle = 'rgba(52,74,100,0.45)'; ctx.lineWidth = 1.8; ctx.stroke(near);
   ctx.strokeStyle = 'rgba(240,250,255,0.35)'; ctx.lineWidth = 1.0; ctx.stroke(hi);
 }
 

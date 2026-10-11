@@ -181,22 +181,32 @@ function drawSoldierFigure(ctx, S, R, opts = {}) {
 
   // back limbs (shaded)
   stroke([hip, kB, aB], 0.13, '#1a1a22');
-  stroke([aB, v2.add(aB, [0.14, -0.02])], 0.1, '#cfcfd2');
+  stroke([v2.lerp(kB, aB, 0.5), aB, v2.add(aB, [0.14, -0.02])], 0.13, '#aaa4b0');
   stroke([sh, armB.j, armB.end], 0.1, PAL.coatSh);
 
   // spear (behind front arm)
   if (!opts.noSpear) {
-    stroke([spButt, spTip], 0.05, '#1a1418');
+    // pale wooden shaft, brown cord below the head, black wrap at the butt (ref: Image 2)
+    stroke([spButt, spTip], 0.05, PAL.shaft);
     if (!sil) {
-      ctx.strokeStyle = '#3a3036'; ctx.lineWidth = 0.02;
-      KDRAW.line(ctx, [v2.lerp(spButt, spTip, 0.2), v2.lerp(spButt, spTip, 0.55)]);
+      ctx.lineCap = 'butt';
+      ctx.strokeStyle = '#6a4a3e'; ctx.lineWidth = 0.06; KDRAW.line(ctx, [v2.lerp(spButt, spTip, 0.74), v2.lerp(spButt, spTip, 0.88)]);
+      ctx.strokeStyle = '#1b1820'; ctx.lineWidth = 0.06; KDRAW.line(ctx, [v2.lerp(spButt, spTip, 0.04), v2.lerp(spButt, spTip, 0.16)]);
+      ctx.lineCap = 'round';
     }
-    const head0 = pose.rev ? spTip : spTip;
+    const head0 = spTip;
     const hd = v2.norm(v2.sub(spTip, spButt)), hn = [-hd[1], hd[0]];
-    const blade = [v2.add(head0, v2.mul(hn, 0.07)), v2.add(head0, v2.mul(hd, 0.5)), v2.sub(head0, v2.mul(hn, 0.07)), v2.sub(head0, v2.mul(hd, 0.08))];
+    // crossbar lugs
+    stroke([v2.add(head0, v2.mul(hn, 0.16)), v2.sub(head0, v2.mul(hn, 0.16))], 0.035, '#a9b0c4');
+    const blade = [v2.add(head0, v2.mul(hn, 0.06)), v2.add(v2.add(head0, v2.mul(hd, 0.28)), v2.mul(hn, 0.08)), v2.add(head0, v2.mul(hd, 0.62)),
+      v2.sub(v2.add(head0, v2.mul(hd, 0.28)), v2.mul(hn, 0.08)), v2.sub(head0, v2.mul(hn, 0.06))];
     ctx.beginPath(); ctx.moveTo(...blade[0]); for (const p of blade) ctx.lineTo(...p); ctx.closePath();
-    ctx.fillStyle = sil ? ink : iridescent(ctx, blade[3], blade[1]); ctx.fill();
+    ctx.fillStyle = sil ? ink : iridescent(ctx, head0, blade[2]); ctx.fill();
     ctx.strokeStyle = ink; ctx.lineWidth = ol * 1.4; ctx.stroke();
+    // butt spike
+    const bs = [v2.add(spButt, v2.mul(hn, 0.03)), v2.sub(spButt, v2.mul(hd, 0.14)), v2.sub(spButt, v2.mul(hn, 0.03))];
+    ctx.beginPath(); ctx.moveTo(...bs[0]); ctx.lineTo(...bs[1]); ctx.lineTo(...bs[2]); ctx.closePath();
+    ctx.fillStyle = sil ? ink : '#8f7bb8'; ctx.fill(); ctx.stroke();
   }
 
   // coat body (white quilted coat + frayed surcoat)
@@ -210,7 +220,7 @@ function drawSoldierFigure(ctx, S, R, opts = {}) {
     for (let i = 1; i < 4; i++) KDRAW.line(ctx, [v2.lerp(body[0], body[5], i / 4), v2.lerp(body[1], body[2], i / 4)]);
     polyFill(ctx, [v2.add(hip, [-0.18, 0.02]), v2.add(hip, [0.0, 0.0]), v2.lerp(hemFront, hemBack, 0.5), hemBack], PAL.coatSh, R, false);
     // frayed surcoat hem
-    ctx.fillStyle = '#e6e2d8'; ctx.strokeStyle = ink; ctx.lineWidth = ol;
+    ctx.fillStyle = PAL.surcoat; ctx.strokeStyle = ink; ctx.lineWidth = ol;
     ctx.beginPath(); ctx.moveTo(...v2.add(hip, [0.14, 0.04]));
     for (let i = 0; i <= 6; i++) {
       const p = v2.lerp(hemFront, hemBack, i / 6);
@@ -224,6 +234,8 @@ function drawSoldierFigure(ctx, S, R, opts = {}) {
   }
   // thick collar + iridescent gorget
   const neck = v2.add(hip, v2.mul(up, 0.66));
+  polyFill(ctx, [v2.add(neck, [-0.08, -0.04]), v2.add(neck, [-0.1, 0.13]), v2.add(neck, [-0.02, 0.15]), v2.add(neck, [0.0, -0.02])], PAL.coat, R);
+  ctx.beginPath(); ctx.arc(neck[0] + 0.03, neck[1] + 0.06, 0.035, 0, TAU); ctx.fillStyle = sil ? ink : '#1b1820'; ctx.fill();
   ctx.beginPath(); ctx.arc(neck[0], neck[1], 0.08, 0, TAU);
   ctx.fillStyle = sil ? ink : iridescent(ctx, v2.add(neck, [-0.08, 0]), v2.add(neck, [0.08, 0])); ctx.fill();
   ctx.strokeStyle = ink; ctx.lineWidth = ol; ctx.stroke();
@@ -233,19 +245,19 @@ function drawSoldierFigure(ctx, S, R, opts = {}) {
   if (!sil) {
     ctx.fillStyle = PAL.hair;
     ctx.beginPath(); ctx.arc(head[0] - 0.02, head[1] + 0.02, 0.115, Math.PI * 0.15 + lean * 0, Math.PI * 1.2); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#c9b6ff';
-    ctx.fillRect(head[0] + 0.045, head[1] + 0.005, 0.035, 0.016);
+    ctx.fillStyle = '#d9ccf5';
+    ctx.fillRect(head[0] + 0.045, head[1] + 0.005, 0.035, 0.014);
   }
   // front leg: black tights, metal knee, white scuffed boot
   stroke([hip, kF, aF], 0.14, '#16161e');
   if (!sil) { ctx.beginPath(); ctx.arc(kF[0], kF[1], 0.06, 0, TAU); ctx.fillStyle = iridescent(ctx, v2.add(kF, [-0.06, 0]), v2.add(kF, [0.06, 0])); ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = ol; ctx.stroke(); }
-  stroke([v2.lerp(kF, aF, 0.55), aF, v2.add(aF, [0.15, -0.02])], 0.12, '#e8e6e0');
+  stroke([v2.lerp(kF, aF, 0.5), aF, v2.add(aF, [0.15, -0.02])], 0.15, PAL.boot);
   // front arm: white sleeve + mechanical gauntlet
-  stroke([sh, armF.j], 0.12, PAL.coat);
-  stroke([armF.j, armF.end], 0.11, '#8d96a3');
+  stroke([sh, armF.j], 0.15, PAL.coat);
+  stroke([armF.j, armF.end], 0.12, '#aab2c4');
   if (!sil) { ctx.strokeStyle = '#c9a6ff'; ctx.lineWidth = 0.02; KDRAW.line(ctx, [v2.lerp(armF.j, armF.end, 0.3), v2.lerp(armF.j, armF.end, 0.8)]); }
   // round black patch on the left sleeve
-  if (!sil) { const m = v2.lerp(sh, armF.j, 0.5); ctx.beginPath(); ctx.arc(m[0], m[1], 0.035, 0, TAU); ctx.fillStyle = ink; ctx.fill(); }
+  if (!sil) { const m = v2.lerp(sh, armF.j, 0.45); ctx.fillStyle = ink; ctx.fillRect(m[0] - 0.035, m[1] - 0.04, 0.07, 0.08); }
   ctx.restore();
   return { tip: spTip, butt: spButt };
 }
